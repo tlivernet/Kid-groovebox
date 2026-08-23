@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Ma Groovebox</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="Une petite groovebox tactile pour inventer de la musique.">
+  <meta name="theme-color" content="#12121c">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Groovebox">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="start-screen">
+    <h1>🎛️ Ma Groovebox</h1>
+    <button id="start-btn">▶️<span>C'est parti&nbsp;!</span></button>
+    <p class="hint">Mets le son 🔊 et tourne la tablette à l'horizontale.</p>
+  </div>
+
+  <header>
+    <div id="styles" class="bar"></div>
+    <div id="keys" class="bar"></div>
+  </header>
+
+  <main id="grid"></main>
+
+  <footer>
+    <div id="transport">
+      <button id="play" class="big-btn">▶️</button>
+      <button id="surprise" class="small-btn" title="Surprise">🎁</button>
+      <button id="clear" class="small-btn" title="Tout effacer">🗑️</button>
+    </div>
+    <div id="knobs"></div>
+    <div id="fx"></div>
+  </footer>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

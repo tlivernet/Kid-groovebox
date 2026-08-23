@@ -1,0 +1,19 @@
+{
+  "name": "Ma Groovebox",
+  "short_name": "Groovebox",
+  "description": "Une petite boîte à rythmes tactile pour inventer de la musique.",
+  "lang": "fr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#12121c",
+  "theme_color": "#12121c",
+  "categories": ["music", "education", "kids"],
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

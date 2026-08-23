@@ -1,0 +1,249 @@
+:root {
+  --bg: #12121c;
+  --panel: #1c1c2b;
+  --panel-2: #262639;
+  --edge: #33334d;
+  --text: #f2f2ff;
+  --muted: #8f8fb0;
+  --accent: #ffd166;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Nunito", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+           max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+}
+
+button { font: inherit; color: inherit; border: none; background: none; cursor: pointer; }
+
+/* --- Écran de démarrage --------------------------------------------------- */
+
+#start-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: radial-gradient(circle at 50% 35%, #2b2b4a, #10101a 70%);
+}
+#start-screen.hidden { display: none; }
+#start-screen h1 { font-size: clamp(28px, 6vw, 56px); letter-spacing: 1px; }
+#start-btn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 44px;
+  border-radius: 999px;
+  font-size: clamp(24px, 4vw, 38px);
+  font-weight: 800;
+  color: #1b1b28;
+  background: linear-gradient(160deg, #ffe08a, #ffb03a);
+  box-shadow: 0 10px 0 #b9761f, 0 18px 40px rgba(0, 0, 0, .45);
+}
+#start-btn:active { transform: translateY(5px); box-shadow: 0 5px 0 #b9761f; }
+.hint { color: var(--muted); font-size: 16px; }
+
+/* --- Barres du haut ------------------------------------------------------- */
+
+header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.bar { display: flex; gap: 6px; align-items: center; }
+#styles { flex: 1; overflow-x: auto; scrollbar-width: none; }
+#styles::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 62px;
+  padding: 6px 10px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 2px solid transparent;
+  transition: transform .08s, background .12s;
+}
+.chip:active { transform: scale(.94); }
+.chip.selected { background: var(--panel-2); border-color: var(--accent); }
+.chip-emoji { font-size: 22px; line-height: 1; }
+.chip-label { font-size: 11px; color: var(--muted); }
+.chip.selected .chip-label { color: var(--text); }
+
+.key-chip { min-width: 46px; font-size: 17px; font-weight: 700; text-transform: capitalize; }
+.mode-chip { min-width: 52px; font-size: 24px; }
+.mode-chip.minor { background: #23233d; }
+
+/* --- Grille du séquenceur -------------------------------------------------- */
+
+#grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.row {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 0;
+}
+
+.track-btn {
+  flex: 0 0 62px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--c) 26%, var(--panel));
+  border: 2px solid color-mix(in srgb, var(--c) 60%, transparent);
+  font-size: 26px;
+  transition: opacity .12s, transform .08s;
+}
+.track-btn:active { transform: scale(.94); }
+.track-btn.off { opacity: .3; filter: grayscale(1); }
+
+.row-btn {
+  flex: 0 0 48px;
+  border-radius: 14px;
+  background: var(--panel);
+  font-size: 22px;
+}
+.row-btn:active { transform: scale(.9); }
+
+.pads {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 5px;
+  min-width: 0;
+}
+
+.pad {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 2px solid transparent;
+  overflow: hidden;
+  transition: border-color .06s;
+}
+.pad.beat { background: var(--panel-2); }
+.pad .fill {
+  width: 100%;
+  height: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 85%, white), var(--c));
+  border-radius: 8px;
+  transition: height .08s ease-out;
+}
+.pad.on { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); }
+.pad.cursor { border-color: rgba(255, 255, 255, .85); }
+.pad.cursor.on .fill { filter: brightness(1.35); }
+
+/* --- Panneau du bas -------------------------------------------------------- */
+
+footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 10px;
+  border-radius: 18px;
+  background: var(--panel);
+}
+
+#transport { display: flex; align-items: center; gap: 10px; }
+.big-btn {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  font-size: 34px;
+  background: linear-gradient(160deg, #7be495, #34c471);
+  box-shadow: 0 6px 0 #1f7a48;
+}
+.big-btn.playing { background: linear-gradient(160deg, #ff8a8a, #e64545); box-shadow: 0 6px 0 #8f2020; }
+.big-btn:active { transform: translateY(4px); box-shadow: none; }
+.small-btn {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  font-size: 26px;
+  background: var(--panel-2);
+}
+.small-btn:active { transform: scale(.92); }
+
+#knobs { flex: 1; display: flex; justify-content: center; gap: clamp(6px, 2vw, 22px); }
+
+.knob { width: clamp(64px, 9vw, 88px); text-align: center; touch-action: none; }
+.knob svg { width: 100%; display: block; }
+.knob-bg { fill: none; stroke: var(--panel-2); stroke-width: 9; }
+.knob-arc { fill: none; stroke: var(--accent); stroke-width: 9; stroke-linecap: round; }
+.knob-pointer { stroke: var(--text); stroke-width: 6; stroke-linecap: round; }
+.knob.active .knob-arc { stroke: #fff; }
+.knob-emoji { font-size: 18px; margin-top: -6px; }
+.knob-label { font-size: 11px; color: var(--muted); }
+.knob-value { font-size: 14px; font-weight: 700; }
+
+#fx { display: flex; gap: 8px; }
+.fx-btn {
+  width: 74px;
+  height: 74px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 18px;
+  background: var(--panel-2);
+  border: 2px solid transparent;
+  touch-action: none;
+}
+.fx-emoji { font-size: 26px; }
+.fx-label { font-size: 10px; color: var(--muted); }
+.fx-btn.active {
+  background: linear-gradient(160deg, #ffd166, #ff9f43);
+  color: #21212f;
+  transform: scale(.95);
+}
+.fx-btn.active .fx-label { color: #21212f; }
+
+/* Écrans étroits (téléphone) : on compacte le panneau du bas. */
+@media (max-width: 760px) {
+  .track-btn { flex: 0 0 46px; font-size: 20px; }
+  .row-btn { flex: 0 0 36px; font-size: 17px; }
+  .pads { gap: 3px; }
+  footer { gap: 8px; flex-wrap: wrap; }
+  .big-btn { width: 62px; height: 62px; font-size: 26px; }
+  .fx-btn { width: 58px; height: 58px; }
+}
+
+/* Une couche coupée reste visible mais s'efface visuellement. */
+.row.muted .pads { opacity: .35; }
