@@ -17,7 +17,7 @@ Une grille de 16 pas sur 6 couches. Chaque ligne se coupe ou se rallume d'un app
 
 | Élément | Geste | Effet |
 |---|---|---|
-| **Styles** (en haut à gauche) | 1 appui | Techno, rock, hip-hop, reggae, disco, doux, latino, jeu vidéo — change le tempo, les sons, le swing et charge un motif de départ dans la phrase en cours |
+| **Styles** (en haut à gauche) | 1 appui | Techno, rock, hip-hop, reggae, disco, doux, latino, jeu vidéo — charge **un petit morceau complet** : tempo, sons, swing et les quatre phrases (voir plus bas) |
 | **Tonalité** (en haut à droite) | 1 appui | Note de base : do, ré, mi… |
 | **Soleil / lune** | 1 appui | Joyeux (majeur) ou mystérieux (mineur) |
 | **Icône d'instrument** | 1 appui | Coupe ou rallume la couche |
@@ -57,6 +57,30 @@ de l'effet s'affiche en grand, et l'écran bat sur les temps forts.
 | Frein | La musique ralentit jusqu'à s'arrêter, puis repart d'un coup |
 | Montée | Un souffle qui grimpe, avec cymbale au relâchement — la transition classique |
 | Cassure | Ne laisse que la grosse caisse |
+
+## Chaque style est un petit morceau
+
+Un style ne charge pas une boucle, mais **quatre phrases écrites à la main** qui s'enchaînent comme
+une chanson :
+
+| Phrase | Rôle |
+|---|---|
+| **A** | Le couplet : le groove de base, épuré |
+| **B** | La variation : même harmonie, ça bouge davantage, la mélodie apparaît |
+| **C** | Le pont : la batterie s'allège, les accords s'ouvrent |
+| **D** | Le refrain : tout revient, avec la mélodie principale |
+
+Il suffit d'appuyer sur **Chaîne** et de laisser tourner : A → B → C → D, un vrai morceau. Basse et
+accords partagent les mêmes degrés à chaque instant, pour que l'harmonie tienne debout, et les
+mélodies sont écrites motif par motif plutôt que tirées au hasard.
+
+Chaque style a aussi **son propre son** : grosse caisse longue et molle en hip-hop, charleston
+métallique à six oscillateurs en techno et en disco, basse qui glisse en reggae, coup sec sur le bord
+de la caisse en latino, tout en ondes carrées sans filtre en jeu vidéo, textures douces à attaque
+lente en « Doux ».
+
+Changer de style remplace les quatre phrases : on garde d'abord son morceau dans « mes morceaux » si
+on y tient.
 
 ## Phrases et enchaînement
 
@@ -115,7 +139,9 @@ node tools/check.mjs
 ```
 
 Le script lance un vrai navigateur et contrôle la mise en page sur quatre formats (tablette et
-téléphone, portrait et paysage) ainsi que le comportement musical : copie et enchaînement des
+téléphone, portrait et paysage), la validité des 32 phrases écrites, le niveau sonore réel de chaque
+style (mesuré à la sortie du moteur : aucun style muet, aucune saturation) ainsi que le comportement
+musical : copie et enchaînement des
 phrases, changement calé sur la mesure, clavier multi-touch, retour à la normale des douze effets,
 sauvegarde et rechargement.
 
@@ -124,7 +150,10 @@ sauvegarde et rechargement.
 ```
 index.html            page unique
 styles.css            habillage « machine » + adaptations portrait / paysage / téléphone
-js/patterns.js        pistes, gammes, 8 styles, liste des effets
+js/patterns.js        pistes, gammes, 8 styles (4 phrases + réglages de son chacun), effets
+js/songs.js           sérialisation du morceau et emplacements de sauvegarde
+js/picker.js          réglette de note agrandie
+js/overlay.js         voile visuel des effets live
 js/icons.js           toutes les icônes, dessinées en SVG (ni émoji ni police d'icônes)
 js/audio.js           moteur audio : percussions et synthés synthétisés, filtre, écho,
                       réverbération, écrasement 8 bits, notes tenues pour le jeu live
@@ -144,6 +173,7 @@ Les changements de phrase sont posés sur le premier pas de la mesure suivante.
 ## Idées pour la suite
 
 - Enregistrer ce qu'on joue au clavier directement dans la phrase (overdub).
+- Écrire une deuxième série de quatre phrases par style, pour varier les morceaux de départ.
 - Mémoriser plusieurs morceaux complets, avec une couleur chacun.
 - Mode « micro » : enregistrer sa voix et la déclencher sur un pad.
 - Export audio du morceau pour l'envoyer à la famille.

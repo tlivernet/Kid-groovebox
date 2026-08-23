@@ -4,6 +4,23 @@ import { SCALES } from './patterns.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
+/**
+ * Réglages de son par défaut. Chaque style ne décrit dans patterns.js que ce
+ * qui le distingue : la grosse caisse molle du hip-hop, le charleston
+ * métallique de la techno, la basse qui glisse du reggae…
+ */
+const DEFAULTS = {
+  kick:  { tune: 150, drop: 48, decay: 0.34, click: 0.25, level: 1 },
+  snare: { kind: 'snare', tone: 195, decay: 0.19, noise: 0.55, hp: 1500, level: 1 },
+  hat:   { decay: 0.05, hp: 7200, metal: false, level: 0.28 },
+  bass:  { wave: 'sawtooth', sub: 0.3, cutoff: 700, decay: 1.8, level: 0.42, glide: 0 },
+  chord: { wave: 'triangle', detune: 8, cutoff: 2200, attack: 0.02, hold: 5, level: 0.14 },
+  lead:  { wave: 'square', detune: 6, cutoff: 3500, decay: 1.5, level: 0.21 },
+};
+
+// Rapports de fréquence des six carrés d'un charleston de boîte à rythmes.
+const METAL_RATIOS = [2, 3, 4.16, 5.43, 6.79, 8.21];
+
 /** Convertit un degré de gamme pentatonique en note MIDI. */
 export function degreeToMidi(degree, root, mode) {
   const scale = SCALES[mode] || SCALES.major;
@@ -31,15 +48,18 @@ export class AudioEngine {
     const ctx = new Ctx({ latencyHint: 'interactive' });
     this.ctx = ctx;
 
+    // Limiteur de sécurité seulement : avec assez de marge, il ne travaille
+    // que sur les crêtes, au lieu d'écraser le morceau en permanence.
     this.limiter = ctx.createDynamicsCompressor();
-    this.limiter.threshold.value = -8;
-    this.limiter.ratio.value = 12;
-    this.limiter.attack.value = 0.003;
-    this.limiter.release.value = 0.15;
+    this.limiter.threshold.value = -4;
+    this.limiter.knee.value = 4;
+    this.limiter.ratio.value = 8;
+    this.limiter.attack.value = 0.002;
+    this.limiter.release.value = 0.12;
     this.limiter.connect(ctx.destination);
 
     this.master = ctx.createGain();
-    this.master.gain.value = 0.9;
+    this.master.gain.value = 0.42;
     this.master.connect(this.limiter);
 
     // Étage « robot » : le son passe soit propre, soit dans un quantificateur.
@@ -174,6 +194,11 @@ export class AudioEngine {
 
   // --- Instruments ---------------------------------------------------------
 
+  /** Réglages d'un instrument : les valeurs du style par-dessus les valeurs par défaut. */
+  cfg(part) {
+    return { ...DEFAULTS[part], ...(this.sound[part] || {}) };
+  }
+
   noiseSource(time, duration) {
     const src = this.ctx.createBufferSource();
     src.buffer = this.noise;
@@ -192,122 +217,184 @@ export class AudioEngine {
   }
 
   kick(time) {
-    const kind = this.sound.kick || 'punch';
-    const cfg = {
-      punch: { start: 160, end: 48, decay: 0.32, gain: 1.0 },
-      boom:  { start: 130, end: 38, decay: 0.65, gain: 1.0 },
-      soft:  { start: 110, end: 45, decay: 0.4,  gain: 0.7 },
-    }[kind];
+    const c = this.cfg('kick');
     const osc = this.ctx.createOscillator();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(cfg.start, time);
-    osc.frequency.exponentialRampToValueAtTime(cfg.end, time + 0.12);
-    const g = this.env(time, 0.002, cfg.decay, cfg.gain);
+    osc.frequency.setValueAtTime(c.tune, time);
+    osc.frequency.exponentialRampToValueAtTime(c.drop, time + Math.min(0.14, c.decay * 0.4));
+    const g = this.env(time, 0.002, c.decay, c.level);
     osc.connect(g).connect(this.tracks.kick);
     osc.start(time);
-    osc.stop(time + cfg.decay + 0.05);
+    osc.stop(time + c.decay + 0.06);
 
-    if (kind !== 'soft') { // petit « clic » d'attaque
+    if (c.click > 0) {   // le « clac » de la peau, qui donne l'attaque
       const click = this.noiseSource(time, 0.03);
       const hp = this.ctx.createBiquadFilter();
       hp.type = 'highpass';
-      hp.frequency.value = 1200;
-      const cg = this.env(time, 0.001, 0.025, 0.25);
+      hp.frequency.value = 1400;
+      const cg = this.env(time, 0.001, 0.024, c.click * 0.35);
       click.connect(hp).connect(cg).connect(this.tracks.kick);
     }
   }
 
   snare(time) {
-    const kind = this.sound.snare || 'snare';
-    if (kind === 'clap') {
-      // Trois petites rafales : effet « claquement de mains ».
+    const c = this.cfg('snare');
+    const out = this.tracks.snare;
+
+    if (c.kind === 'clap') {
+      // Trois rafales très rapprochées : le claquement de mains.
       for (let i = 0; i < 3; i++) {
         const t = time + i * 0.012;
-        const src = this.noiseSource(t, 0.13);
+        const src = this.noiseSource(t, c.decay + 0.05);
         const bp = this.ctx.createBiquadFilter();
         bp.type = 'bandpass';
         bp.frequency.value = 1500;
-        bp.Q.value = 1.2;
-        const g = this.env(t, 0.001, i === 2 ? 0.16 : 0.03, i === 2 ? 0.55 : 0.35);
-        src.connect(bp).connect(g).connect(this.tracks.snare);
+        bp.Q.value = 1.3;
+        const g = this.env(t, 0.001, i === 2 ? c.decay : 0.03, (i === 2 ? 0.6 : 0.36) * c.level);
+        src.connect(bp).connect(g).connect(out);
       }
       return;
     }
-    const soft = kind === 'brush';
-    const src = this.noiseSource(time, 0.3);
-    const bp = this.ctx.createBiquadFilter();
-    bp.type = soft ? 'bandpass' : 'highpass';
-    bp.frequency.value = soft ? 3000 : 1400;
-    const g = this.env(time, 0.001, soft ? 0.14 : 0.19, soft ? 0.35 : 0.6);
-    src.connect(bp).connect(g).connect(this.tracks.snare);
 
-    if (!soft) {
+    if (c.kind === 'rim') {
+      // Coup sec sur le bord : une note très courte et un grain de bruit.
       const osc = this.ctx.createOscillator();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(190, time);
-      osc.frequency.exponentialRampToValueAtTime(120, time + 0.1);
-      const og = this.env(time, 0.001, 0.12, 0.45);
-      osc.connect(og).connect(this.tracks.snare);
+      osc.frequency.setValueAtTime(c.tone, time);
+      osc.frequency.exponentialRampToValueAtTime(c.tone * 0.55, time + c.decay);
+      const g = this.env(time, 0.001, c.decay, 0.5 * c.level);
+      osc.connect(g).connect(out);
       osc.start(time);
-      osc.stop(time + 0.2);
+      osc.stop(time + c.decay + 0.05);
+
+      const src = this.noiseSource(time, 0.03);
+      const bp = this.ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 2600;
+      const ng = this.env(time, 0.001, 0.02, c.noise * 0.3 * c.level);
+      src.connect(bp).connect(ng).connect(out);
+      return;
+    }
+
+    const brush = c.kind === 'brush';
+    const src = this.noiseSource(time, c.decay + 0.1);
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = brush ? 'bandpass' : 'highpass';
+    filter.frequency.value = brush ? 3200 : c.hp;
+    const g = this.env(time, 0.001, c.decay, c.noise * c.level);
+    src.connect(filter).connect(g).connect(out);
+
+    if (!brush) {   // le corps de la caisse, sous le souffle
+      const osc = this.ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(c.tone, time);
+      osc.frequency.exponentialRampToValueAtTime(c.tone * 0.63, time + 0.1);
+      const og = this.env(time, 0.001, c.decay * 0.65, 0.45 * c.level);
+      osc.connect(og).connect(out);
+      osc.start(time);
+      osc.stop(time + c.decay + 0.1);
     }
   }
 
   hat(time) {
-    const open = (this.sound.hat || 'tight') === 'open';
-    const decay = open ? 0.22 : 0.055;
-    const src = this.noiseSource(time, decay + 0.05);
+    const c = this.cfg('hat');
+    const out = this.tracks.hat;
     const hp = this.ctx.createBiquadFilter();
     hp.type = 'highpass';
-    hp.frequency.value = 7000;
-    const g = this.env(time, 0.001, decay, 0.3);
-    src.connect(hp).connect(g).connect(this.tracks.hat);
+    hp.frequency.value = c.hp;
+    const g = this.env(time, 0.001, c.decay, c.level);
+    hp.connect(g).connect(out);
+
+    if (c.metal) {
+      // Six carrés désaccordés : le charleston sec des boîtes à rythmes.
+      const bp = this.ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 10000;
+      bp.Q.value = 0.8;
+      bp.connect(hp);
+      for (const ratio of METAL_RATIOS) {
+        const osc = this.ctx.createOscillator();
+        osc.type = 'square';
+        osc.frequency.value = 40 * ratio;
+        osc.connect(bp);
+        osc.start(time);
+        osc.stop(time + c.decay + 0.05);
+      }
+      return;
+    }
+    this.noiseSource(time, c.decay + 0.05).connect(hp);
   }
 
-  /** Voix synthétique simple : oscillateur + filtre + enveloppe. */
+  /** Voix synthétique : oscillateur(s) + filtre qui se referme + enveloppe. */
   voice(trackId, freq, time, duration, opts = {}) {
     const {
       wave = 'sawtooth', peak = 0.3, attack = 0.005, cutoff = 4000,
-      detune = 0, glideFrom = null,
+      detune = 0, glideFrom = null, sub = 0,
     } = opts;
-    const osc = this.ctx.createOscillator();
-    osc.type = wave;
-    osc.detune.value = detune;
-    if (glideFrom) {
-      osc.frequency.setValueAtTime(glideFrom, time);
-      osc.frequency.exponentialRampToValueAtTime(freq, time + 0.06);
-    } else {
-      osc.frequency.setValueAtTime(freq, time);
-    }
     const lp = this.ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.setValueAtTime(Math.min(cutoff * 2.2, 16000), time);
-    lp.frequency.exponentialRampToValueAtTime(Math.max(cutoff, 200), time + duration * 0.8);
+    lp.frequency.setValueAtTime(Math.min(cutoff * 2.6, 16000), time);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(cutoff, 180), time + duration * 0.8);
     const g = this.env(time, attack, duration, peak);
-    osc.connect(lp).connect(g).connect(this.tracks[trackId] || this.bus);
-    osc.start(time);
-    osc.stop(time + duration + attack + 0.05);
+    lp.connect(g).connect(this.tracks[trackId] || this.bus);
+
+    const startOsc = (type, frequency, level) => {
+      const osc = this.ctx.createOscillator();
+      osc.type = type;
+      osc.detune.value = detune;
+      if (glideFrom) {
+        osc.frequency.setValueAtTime(glideFrom, time);
+        osc.frequency.exponentialRampToValueAtTime(frequency, time + 0.07);
+      } else {
+        osc.frequency.setValueAtTime(frequency, time);
+      }
+      if (level === 1) {
+        osc.connect(lp);
+      } else {
+        const mix = this.ctx.createGain();
+        mix.gain.value = level;
+        osc.connect(mix).connect(lp);
+      }
+      osc.start(time);
+      osc.stop(time + duration + attack + 0.06);
+    };
+
+    startOsc(wave, freq, 1);
+    if (sub > 0) startOsc('sine', freq / 2, sub);   // l'octave du dessous, pour le poids
   }
 
-  bass(midi, time, duration) {
+  bass(midi, time, stepDuration) {
+    const c = this.cfg('bass');
     const freq = midiToFreq(midi);
-    this.voice('bass', freq, time, duration, {
-      wave: this.sound.bassWave || 'sawtooth', peak: 0.42, cutoff: 700, attack: 0.004,
+    this.voice('bass', freq, time, stepDuration * c.decay, {
+      wave: c.wave, peak: c.level, cutoff: c.cutoff, attack: 0.004, sub: c.sub,
+      glideFrom: c.glide > 0 ? this.lastBassFreq : null,
     });
+    this.lastBassFreq = freq;
   }
 
-  lead(midi, time, duration) {
+  lead(midi, time, stepDuration) {
+    const c = this.cfg('lead');
     const freq = midiToFreq(midi);
-    const wave = this.sound.leadWave || 'square';
-    this.voice('lead', freq, time, duration, { wave, peak: 0.22, cutoff: 3500, attack: 0.006 });
-    this.voice('lead', freq, time, duration, { wave, peak: 0.1, cutoff: 3000, detune: 8, attack: 0.01 });
+    const duration = stepDuration * c.decay;
+    this.voice('lead', freq, time, duration, {
+      wave: c.wave, peak: c.level, cutoff: c.cutoff, attack: 0.006,
+    });
+    if (c.detune > 0) {   // deuxième voix légèrement décalée : ça épaissit
+      this.voice('lead', freq, time, duration, {
+        wave: c.wave, peak: c.level * 0.45, cutoff: c.cutoff * 0.85,
+        detune: c.detune, attack: 0.01,
+      });
+    }
   }
 
-  chord(midis, time, duration) {
-    const wave = this.sound.chordWave || 'triangle';
+  chord(midis, time, stepDuration) {
+    const c = this.cfg('chord');
+    const duration = stepDuration * c.hold;
     midis.forEach((midi, i) => {
       this.voice('chord', midiToFreq(midi), time, duration, {
-        wave, peak: 0.16, cutoff: 2200, attack: 0.02, detune: i % 2 ? 6 : -6,
+        wave: c.wave, peak: c.level, cutoff: c.cutoff, attack: c.attack,
+        detune: c.detune * (i % 2 ? 1 : -1),
       });
     });
   }
@@ -317,11 +404,14 @@ export class AudioEngine {
   /** Démarre une note (ou un accord) et renvoie de quoi l'arrêter. */
   noteOn(trackId, midis) {
     const t = this.ctx.currentTime;
+    const part = this.cfg(trackId);
+    const detune = part.detune ?? 0;
     const cfg = {
-      bass:  { wave: this.sound.bassWave  || 'sawtooth', cutoff: 900,  peak: 0.40, detunes: [0] },
-      chord: { wave: this.sound.chordWave || 'triangle', cutoff: 2400, peak: 0.13, detunes: [-7, 7] },
-      lead:  { wave: this.sound.leadWave  || 'square',   cutoff: 3800, peak: 0.22, detunes: [-6, 6] },
-    }[trackId] || { wave: 'square', cutoff: 3000, peak: 0.2, detunes: [0] };
+      wave: part.wave,
+      cutoff: Math.max(part.cutoff, trackId === 'bass' ? 900 : 1600),
+      peak: part.level * (trackId === 'chord' ? 0.9 : 1),
+      detunes: detune > 0 ? [-detune, detune] : [0],
+    };
 
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0.0001, t);

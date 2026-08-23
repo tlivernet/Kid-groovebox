@@ -105,7 +105,7 @@ export class Sequencer {
     if (s.enabled.bass) {
       const deg = s.patterns.bass[step];
       if (deg !== null) {
-        this.engine.bass(degreeToMidi(deg, TRACK_ROOT.bass + rootShift, s.mode), time, dur * 1.8);
+        this.engine.bass(degreeToMidi(deg, TRACK_ROOT.bass + rootShift, s.mode), time, dur);
       }
     }
     if (s.enabled.chord) {
@@ -113,13 +113,13 @@ export class Sequencer {
       if (deg !== null) {
         const root = TRACK_ROOT.chord + rootShift;
         const notes = [deg, deg + 2, deg + 4].map((d) => degreeToMidi(d, root, s.mode));
-        this.engine.chord(notes, time, dur * 5);
+        this.engine.chord(notes, time, dur);
       }
     }
     if (s.enabled.lead) {
       const deg = s.patterns.lead[step];
       if (deg !== null) {
-        this.engine.lead(degreeToMidi(deg, TRACK_ROOT.lead + rootShift, s.mode), time, dur * 1.4);
+        this.engine.lead(degreeToMidi(deg, TRACK_ROOT.lead + rootShift, s.mode), time, dur);
       }
     }
   }

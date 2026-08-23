@@ -33,6 +33,35 @@ const check = (name, ok, detail = '') => {
   results.push({ ok, line: `${ok ? 'OK   ' : 'ÉCHEC'} ${name}${detail ? ' — ' + detail : ''}` });
 };
 
+// --- Contrôle des motifs, sans navigateur --------------------------------------
+
+const { STYLES, TRACKS, STEPS, PHRASES, MAX_DEGREE } = await import('../js/patterns.js');
+
+for (const style of STYLES) {
+  const soucis = [];
+  if (style.phrases.length !== PHRASES) soucis.push(`${style.phrases.length} phrases`);
+  style.phrases.forEach((phrase, i) => {
+    for (const track of TRACKS) {
+      const steps = phrase[track.id];
+      if (!Array.isArray(steps) || steps.length !== STEPS) {
+        soucis.push(`${'ABCD'[i]}/${track.id} : ${steps?.length} pas`);
+        continue;
+      }
+      for (const v of steps) {
+        const bon = track.type === 'drum'
+          ? v === 0 || v === 1
+          : v === null || (Number.isInteger(v) && v >= 0 && v <= MAX_DEGREE);
+        if (!bon) { soucis.push(`${'ABCD'[i]}/${track.id} : valeur ${v}`); break; }
+      }
+    }
+    // Une phrase vide casserait l'enchaînement : chaque phrase doit sonner.
+    const vide = TRACKS.every((t) => phrase[t.id].every((v) => (t.type === 'drum' ? !v : v === null)));
+    if (vide) soucis.push(`${'ABCD'[i]} est vide`);
+  });
+  if (style.tempo < 60 || style.tempo > 180) soucis.push(`tempo ${style.tempo}`);
+  check(`motifs du style ${style.label}`, soucis.length === 0, soucis.join(', '));
+}
+
 const server = spawn('python3', ['-m', 'http.server', String(PORT), '--directory', ROOT], { stdio: 'ignore' });
 await new Promise((r) => setTimeout(r, 1000));
 
@@ -203,6 +232,44 @@ await page.waitForTimeout(250);
 const morceauRecharge = await page.evaluate(() => JSON.stringify(window.groovebox.state.phrases));
 check('emplacement « mes morceaux » : garder puis rejouer',
       carteRemplie && morceauGarde === morceauRecharge);
+
+// Chaque style doit sonner : on mesure vraiment le signal en sortie.
+await page.click('.view-tab[data-view="motif"]');
+const niveaux = await page.evaluate(async () => {
+  const { engine, handlers, state, sequencer } = window.groovebox;
+  const analyser = engine.ctx.createAnalyser();
+  analyser.fftSize = 2048;
+  engine.master.connect(analyser);
+  const data = new Float32Array(analyser.fftSize);
+  const mesures = {};
+  const styles = [...document.querySelectorAll('.style-chip')].map((c) => c.dataset.style);
+  state.tempo = 150;
+  for (const id of styles) {
+    handlers.onStyle(id);
+    let crete = 0, somme = 0, n = 0;
+    const debut = performance.now();
+    while (performance.now() - debut < 1200) {
+      await new Promise((r) => setTimeout(r, 40));
+      analyser.getFloatTimeDomainData(data);
+      for (const v of data) {
+        const a = Math.abs(v);
+        if (a > crete) crete = a;
+        somme += v * v;
+        n++;
+      }
+    }
+    mesures[id] = { crete: Number(crete.toFixed(3)), rms: Number(Math.sqrt(somme / n).toFixed(4)) };
+  }
+  sequencer.stop();
+  return mesures;
+});
+const muets = Object.entries(niveaux).filter(([, m]) => m.rms < 0.01).map(([id]) => id);
+const satures = Object.entries(niveaux).filter(([, m]) => m.crete > 0.99).map(([id]) => id);
+check('les 8 styles sonnent, sans saturation', muets.length === 0 && satures.length === 0,
+      muets.length || satures.length
+        ? `muets : ${muets.join(', ') || 'aucun'} / saturés : ${satures.join(', ') || 'aucun'}`
+        : Object.entries(niveaux).map(([id, m]) => `${id} ${m.rms}`).join('  '));
+await page.evaluate(() => window.groovebox.sequencer.start());
 
 const avant = await page.evaluate(() => JSON.stringify(window.groovebox.state.phrases));
 await page.reload();

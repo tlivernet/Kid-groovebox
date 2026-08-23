@@ -1,7 +1,7 @@
 // Assemblage : état, sauvegarde, effets de scène, jeu en direct, démarrage.
 import {
-  TRACKS, STYLES, STEPS, MAX_DEGREE, PHRASES, TRACK_ROOT, KEYS, PUNCH_FX,
-  getStyle, clonePatterns, emptyPatterns, noteName,
+  TRACKS, STYLES, STEPS, MAX_DEGREE, TRACK_ROOT, KEYS, PUNCH_FX,
+  getStyle, cloneSong, emptyPatterns, noteName,
 } from './patterns.js';
 import { AudioEngine, degreeToMidi } from './audio.js';
 import { Sequencer } from './sequencer.js';
@@ -28,7 +28,7 @@ function makeState(styleId) {
     delay: style.fx.delay,
     space: style.fx.space,
     enabled: Object.fromEntries(TRACKS.map((t) => [t.id, true])),
-    phrases: [clonePatterns(style), ...Array.from({ length: PHRASES - 1 }, emptyPatterns)],
+    phrases: cloneSong(style),
     phraseIndex: 0,
     queuedPhrase: null,
     chain: false,
@@ -129,9 +129,10 @@ function preview(trackId, degree) {
   if (trackId === 'kick') engine.kick(t);
   else if (trackId === 'snare') engine.snare(t);
   else if (trackId === 'hat') engine.hat(t);
-  else if (trackId === 'bass') engine.bass(midiFor('bass', degree), t, 0.3);
-  else if (trackId === 'lead') engine.lead(midiFor('lead', degree), t, 0.3);
-  else if (trackId === 'chord') engine.chord(chordMidis(degree), t, 0.6);
+  // Durées données en « pas » : le style décide de la longueur réelle des notes.
+  else if (trackId === 'bass') engine.bass(midiFor('bass', degree), t, 0.16);
+  else if (trackId === 'lead') engine.lead(midiFor('lead', degree), t, 0.16);
+  else if (trackId === 'chord') engine.chord(chordMidis(degree), t, 0.12);
 }
 
 // --- Effets de scène (tenus) --------------------------------------------------
@@ -217,7 +218,7 @@ let ui = null;
 const handlers = {
   onStyle(id) {
     const style = getStyle(id);
-    // On charge le style dans la phrase en cours : les autres phrases sont conservées.
+    // Un style, c'est un petit morceau complet : ses quatre phrases sont chargées.
     Object.assign(state, {
       styleId: style.id,
       tempo: style.tempo,
@@ -227,7 +228,7 @@ const handlers = {
       delay: style.fx.delay,
       space: style.fx.space,
     });
-    state.phrases[state.phraseIndex] = clonePatterns(style);
+    state.phrases = cloneSong(style);
     applySound();
     applyMix();
     ui.refreshAll();
