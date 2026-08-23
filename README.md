@@ -22,8 +22,12 @@ Une grille de 16 pas sur 6 couches. Chaque ligne se coupe ou se rallume d'un app
 | **Soleil / lune** | 1 appui | Joyeux (majeur) ou mystérieux (mineur) |
 | **Icône d'instrument** | 1 appui | Coupe ou rallume la couche |
 | **Pads** | 1 appui | Ajoute ou enlève un son sur ce temps |
-| **Pads mélodiques** | glisser haut/bas | Change la note : la barre monte avec le son |
+| **Pads mélodiques** | poser le doigt, puis glisser haut/bas | Une **réglette géante** s'ouvre sur toute la hauteur de l'écran : chaque note occupe une grosse bande avec son nom (do, ré, mi…), et la position du doigt désigne directement la note. On relâche, elle disparaît |
 | **Dé** (à droite de chaque ligne) | 1 appui | Invente un motif pour cette ligne |
+| **Dossier** (en bas) | 1 appui | Ouvre « mes morceaux » : 6 emplacements de sauvegarde |
+
+Même principe d'agrandissement sur les **potards** : pendant le réglage, une grosse bulle affiche la
+valeur au-dessus du bouton, lisible sans se pencher sur la tablette.
 
 ### Live — jouer par-dessus
 
@@ -36,6 +40,11 @@ Une grille de 16 pas sur 6 couches. Chaque ligne se coupe ou se rallume d'un app
 
 Les effets sont **tenus** : on appuie, ça change ; on relâche, la musique repart exactement comme
 avant. C'est le principe des *punch-in effects* de l'OP-Z.
+
+Chaque effet s'accompagne d'un **voile visuel plein écran** qui montre ce qu'on entend : le monde se
+referme sur le filtre, des flashs pour la répète, des anneaux pour l'écho, un halo pour l'espace, un
+quadrillage de vieille machine pour le robot, une vague de lumière qui grimpe pour la montée. Le nom
+de l'effet s'affiche en grand, et l'écran bat sur les temps forts.
 
 | Effet | Ce qui se passe |
 |---|---|
@@ -70,7 +79,15 @@ Le point sous une lettre indique qu'elle contient quelque chose.
 - **Aucun état caché** : pas de menu, pas de mode invisible ; ce qui est allumé est ce qu'on entend.
 - **Tout est réversible** : les effets se relâchent, la corbeille n'efface que la phrase en cours.
 
-Le morceau est **sauvegardé automatiquement** dans la tablette.
+## Sauvegarder ses morceaux
+
+Le morceau en cours est **repris automatiquement** au démarrage suivant. En plus, le bouton
+**dossier** ouvre « mes morceaux » : six emplacements, chacun avec un aperçu miniature de sa boucle,
+son style et son tempo.
+
+- **Garder** enregistre le morceau du moment dans cet emplacement. Sur un emplacement déjà occupé, il
+  faut appuyer deux fois (le bouton demande « Sûr ? ») : on n'écrase rien par erreur.
+- **Jouer** ressort le morceau : phrases, style, tonalité, réglages, tout revient.
 
 ## Essayer
 

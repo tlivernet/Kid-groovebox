@@ -1,11 +1,13 @@
 // Assemblage : état, sauvegarde, effets de scène, jeu en direct, démarrage.
 import {
-  TRACKS, STYLES, STEPS, MAX_DEGREE, PHRASES, TRACK_ROOT, KEYS,
-  getStyle, clonePatterns, emptyPatterns,
+  TRACKS, STYLES, STEPS, MAX_DEGREE, PHRASES, TRACK_ROOT, KEYS, PUNCH_FX,
+  getStyle, clonePatterns, emptyPatterns, noteName,
 } from './patterns.js';
 import { AudioEngine, degreeToMidi } from './audio.js';
 import { Sequencer } from './sequencer.js';
 import { UI } from './ui.js';
+import { FxOverlay } from './overlay.js';
+import { serialize, applySong, readSlots, writeSlot } from './songs.js';
 import { icon } from './icons.js';
 
 const SAVE_KEY = 'kid-groovebox-v2';
@@ -48,25 +50,7 @@ function load() {
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
     if (!saved) return null;
     const state = makeState(saved.styleId);
-    for (const key of ['tempo', 'keyIndex', 'mode', 'transpose', 'swing', 'filter', 'delay', 'space',
-                       'view', 'liveTrack', 'octave', 'chain']) {
-      if (typeof saved[key] === typeof state[key]) state[key] = saved[key];
-    }
-    for (const t of TRACKS) {
-      if (typeof saved.enabled?.[t.id] === 'boolean') state.enabled[t.id] = saved.enabled[t.id];
-    }
-    // Une sauvegarde abîmée ne doit jamais empêcher l'appli de démarrer.
-    if (Array.isArray(saved.phrases)) {
-      saved.phrases.slice(0, PHRASES).forEach((phrase, i) => {
-        for (const t of TRACKS) {
-          const steps = phrase?.[t.id];
-          if (Array.isArray(steps) && steps.length === STEPS) state.phrases[i][t.id] = steps;
-        }
-      });
-    }
-    if (Number.isInteger(saved.phraseIndex)) {
-      state.phraseIndex = Math.min(Math.max(saved.phraseIndex, 0), PHRASES - 1);
-    }
+    applySong(state, saved);
     return state;
   } catch {
     return null;
@@ -79,7 +63,7 @@ let saveTimer = null;
 function save() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch { /* stockage plein */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(serialize(state))); } catch { /* stockage plein */ }
   }, 400);
 }
 
@@ -154,9 +138,11 @@ function preview(trackId, degree) {
 
 const fxActive = {};
 let brakeFrame = null;
+let overlay = null;
 
 function setFx(id, active) {
   fxActive[id] = active;
+  overlay?.set(id, active);
   switch (id) {
     case 'filter':
       if (active) engine.setFilter(0.12, 9);
@@ -316,6 +302,21 @@ const handlers = {
   },
   onKeyDown: keyDown,
   onKeyUp: keyUp,
+  /** Les dix notes d'une piste, dans la tonalité du moment (pour la réglette). */
+  noteNames(trackId) {
+    return Array.from({ length: MAX_DEGREE + 1 }, (_, degree) => noteName(midiFor(trackId, degree)));
+  },
+  getSlots: readSlots,
+  onSongSave(index) { writeSlot(index, state); },
+  onSongLoad(index) {
+    const slot = readSlots()[index];
+    if (!slot) return;
+    applySong(state, slot.data);
+    applySound();
+    applyMix();
+    ui.refreshAll();
+    save();
+  },
   onTempo(v) { state.tempo = v; engine.syncDelay(v); save(); },
   onTranspose(v) { state.transpose = v; save(); },
   onFilter(v) { state.filter = v; if (!fxActive.filter) engine.setFilter(v); save(); },
@@ -335,8 +336,9 @@ async function boot() {
   await engine.start();
   applySound();
   applyMix();
+  overlay = new FxOverlay(document.body, Object.fromEntries(PUNCH_FX.map((fx) => [fx.id, fx.label])));
   sequencer = new Sequencer(engine, state, {
-    onStep: (step) => ui.setPlayhead(step),
+    onStep: (step) => { ui.setPlayhead(step); overlay.pulse(step); },
     onPhrase: () => { ui.refreshPads(); ui.refreshPhrases(); },
   });
   ui = new UI(root, state, handlers);
@@ -345,7 +347,7 @@ async function boot() {
   ui.setPlaying(true);
   keepScreenAwake();
   // Poignée de débogage : pratique pour inspecter l'état depuis la console.
-  window.groovebox = { state, engine, sequencer, handlers, ui };
+  window.groovebox = { state, engine, sequencer, handlers, ui, overlay };
 }
 
 async function keepScreenAwake() {

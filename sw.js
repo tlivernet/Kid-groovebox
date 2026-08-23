@@ -1,5 +1,5 @@
 // Service worker : l'appli fonctionne entièrement hors ligne une fois installée.
-const CACHE = 'kid-groovebox-v2';
+const CACHE = 'kid-groovebox-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,9 @@ const ASSETS = [
   './js/app.js',
   './js/audio.js',
   './js/icons.js',
+  './js/songs.js',
+  './js/picker.js',
+  './js/overlay.js',
   './js/patterns.js',
   './js/sequencer.js',
   './js/ui.js',

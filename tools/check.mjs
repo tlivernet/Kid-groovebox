@@ -83,6 +83,7 @@ await page.reload();
 await page.click('#start-btn');
 await page.waitForTimeout(700);
 await page.evaluate(() => { window.groovebox.state.tempo = 180; });
+const window0Height = SIZES[0].height;
 
 const phraseB = page.locator('.phrase-btn[data-phrase="1"]');
 await phraseB.dispatchEvent('pointerdown', { pointerId: 1 });
@@ -146,6 +147,62 @@ const repos = await page.evaluate(() => ({
 }));
 check(`retour à la normale après les ${fxIds.length} effets`,
       repos.vitesse === 1 && repos.repetition === null && repos.enLecture, JSON.stringify(repos));
+
+// Réglette de note : elle s'ouvre sous le doigt, la position choisit la note.
+await page.click('.view-tab[data-view="motif"]');
+const pad = page.locator('.row[data-track="lead"] .pad').nth(1);
+const padBox = await pad.boundingBox();
+await pad.dispatchEvent('pointerdown', { pointerId: 30, clientX: padBox.x + padBox.width / 2, clientY: padBox.y + 4 });
+await page.waitForTimeout(150);
+const pickerBox = await page.locator('.picker').boundingBox();
+await pad.dispatchEvent('pointermove', { pointerId: 30, clientX: padBox.x, clientY: pickerBox.y + 8 });
+await page.waitForTimeout(120);
+const aigu = await page.evaluate(() => window.groovebox.state.patterns.lead[1]);
+await pad.dispatchEvent('pointermove', { pointerId: 30, clientX: padBox.x, clientY: pickerBox.y + pickerBox.height - 8 });
+await page.waitForTimeout(120);
+const grave = await page.evaluate(() => window.groovebox.state.patterns.lead[1]);
+await pad.dispatchEvent('pointerup', { pointerId: 30 });
+const referme = await page.evaluate(() => document.querySelector('.picker').classList.contains('hidden'));
+check('la réglette choisit la note à la position du doigt',
+      aigu === 9 && grave === 0 && referme && pickerBox.height > window0Height * 0.7,
+      `haut : ${aigu}, bas : ${grave}, hauteur : ${Math.round(pickerBox.height)} px`);
+
+// Un simple appui sur une note existante l'efface toujours.
+await pad.dispatchEvent('pointerdown', { pointerId: 31, clientX: padBox.x + 4, clientY: padBox.y + 4 });
+await pad.dispatchEvent('pointerup', { pointerId: 31 });
+check('un appui simple efface la note',
+      await page.evaluate(() => window.groovebox.state.patterns.lead[1]) === null);
+
+// Voile visuel : présent pendant l'effet, retiré au relâchement.
+await page.click('.view-tab[data-view="live"]');
+const fxSpace = page.locator('.fx-btn[data-fx="space"]');
+await fxSpace.dispatchEvent('pointerdown', { pointerId: 32 });
+await page.waitForTimeout(250);
+const voile = await page.evaluate(() => {
+  const el = document.querySelector('#fx-overlay');
+  return { actif: el.classList.contains('on') && el.classList.contains('fx-space'),
+           nom: el.querySelector('.ov-label').textContent };
+});
+await fxSpace.dispatchEvent('pointerup', { pointerId: 32 });
+await page.waitForTimeout(200);
+const voileApres = await page.evaluate(() => document.querySelector('#fx-overlay').classList.contains('on'));
+check('voile visuel de l\'effet', voile.actif && voile.nom === 'Espace' && !voileApres, JSON.stringify(voile));
+
+// Emplacements de sauvegarde : garder, casser le morceau, recharger.
+await page.click('#songs');
+await page.click('.song-card[data-slot="0"] .song-save');
+await page.waitForTimeout(200);
+const carteRemplie = await page.evaluate(() =>
+  document.querySelector('.song-card[data-slot="0"]').classList.contains('filled'));
+await page.click('#songs-panel .close-btn');
+const morceauGarde = await page.evaluate(() => JSON.stringify(window.groovebox.state.phrases));
+await page.evaluate(() => window.groovebox.handlers.onClear());
+await page.click('#songs');
+await page.click('.song-card[data-slot="0"] .song-load');
+await page.waitForTimeout(250);
+const morceauRecharge = await page.evaluate(() => JSON.stringify(window.groovebox.state.phrases));
+check('emplacement « mes morceaux » : garder puis rejouer',
+      carteRemplie && morceauGarde === morceauRecharge);
 
 const avant = await page.evaluate(() => JSON.stringify(window.groovebox.state.phrases));
 await page.reload();

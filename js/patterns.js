@@ -205,3 +205,9 @@ export function emptyPatterns() {
 export function isEmptyPhrase(phrase) {
   return TRACKS.every((t) => phrase[t.id].every((v) => (t.type === 'drum' ? !v : v === null)));
 }
+
+// Noms de notes en français, pour l'affichage du sélecteur agrandi.
+const NOTE_NAMES = ['do', 'do♯', 'ré', 'ré♯', 'mi', 'fa', 'fa♯', 'sol', 'sol♯', 'la', 'la♯', 'si'];
+export function noteName(midi) {
+  return NOTE_NAMES[((Math.round(midi) % 12) + 12) % 12];
+}

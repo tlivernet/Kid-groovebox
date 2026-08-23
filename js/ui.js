@@ -1,9 +1,11 @@
 // Interface : barres du haut, grille de motif, mode live (clavier + effets), potards.
 import {
   TRACKS, STYLES, KEYS, STEPS, MAX_DEGREE, PHRASES, PHRASE_NAMES, PUNCH_FX,
-  LIVE_TRACKS, isEmptyPhrase,
+  LIVE_TRACKS, isEmptyPhrase, getStyle,
 } from './patterns.js';
 import { icon } from './icons.js';
+import { NotePicker } from './picker.js';
+import { SLOTS } from './songs.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -31,6 +33,7 @@ export function createKnob({ iconName, label, min, max, value, step = 1, format,
         <line class="knob-pointer" x1="50" y1="50" x2="50" y2="16"></line>
       </svg>
       <span class="knob-icon">${icon(iconName)}</span>
+      <div class="knob-bubble"><span class="bubble-label">${label}</span><span class="bubble-value"></span></div>
     </div>
     <div class="knob-label">${label}</div>
     <div class="knob-value"></div>`;
@@ -38,6 +41,7 @@ export function createKnob({ iconName, label, min, max, value, step = 1, format,
   const arc = el.querySelector('.knob-arc');
   const pointer = el.querySelector('.knob-pointer');
   const valueEl = el.querySelector('.knob-value');
+  const bubbleEl = el.querySelector('.bubble-value');
   let current = value;
   const START = -135, END = 135;
 
@@ -56,6 +60,7 @@ export function createKnob({ iconName, label, min, max, value, step = 1, format,
       'A', 38, 38, 0, large, 1, 50 + Math.cos(rad) * 38, 50 + Math.sin(rad) * 38,
     ].join(' '));
     valueEl.textContent = format ? format(current) : String(Math.round(current));
+    bubbleEl.textContent = valueEl.textContent;   // même valeur, en très gros
   }
 
   function set(v, notify = true) {
@@ -93,6 +98,20 @@ export function createKnob({ iconName, label, min, max, value, step = 1, format,
   return { el, set: (v) => set(v, false), get value() { return current; } };
 }
 
+/** Petit aperçu d'une phrase : une pastille par note, aux couleurs des pistes. */
+function previewSvg(phrase) {
+  if (!phrase) return '';
+  const marks = [];
+  TRACKS.forEach((track, row) => {
+    const steps = phrase[track.id] || [];
+    steps.forEach((value, i) => {
+      const on = track.type === 'drum' ? value === 1 : value !== null && value !== undefined;
+      if (on) marks.push(`<rect x="${i + 0.1}" y="${row + 0.15}" width="0.8" height="0.7" rx="0.3" fill="${track.color}"/>`);
+    });
+  });
+  return `<svg viewBox="0 0 16 6" preserveAspectRatio="none">${marks.join('')}</svg>`;
+}
+
 export class UI {
   constructor(root, state, handlers) {
     this.root = root;
@@ -105,6 +124,7 @@ export class UI {
   }
 
   build() {
+    this.picker = new NotePicker(this.root);
     this.buildStyles();
     this.buildKeys();
     this.buildViews();
@@ -114,6 +134,7 @@ export class UI {
     this.buildKeyboard();
     this.buildKnobs();
     this.buildTransport();
+    this.buildSongs();
     this.refreshAll();
   }
 
@@ -244,28 +265,39 @@ export class UI {
 
   attachPadEvents(pad, track, step) {
     let wasOn = false, moved = false, startY = 0, startDegree = 0, activePointer = null;
+    const pitched = track.type === 'pitch';
 
     pad.addEventListener('pointerdown', (e) => {
       capture(pad, e.pointerId);
       e.preventDefault();
       activePointer = e.pointerId;
       const value = this.state.patterns[track.id][step];
-      wasOn = track.type === 'drum' ? value === 1 : value !== null;
+      wasOn = pitched ? value !== null : value === 1;
       moved = false;
       startY = e.clientY;
-      startDegree = track.type === 'pitch' && wasOn ? value : this.state.lastDegree[track.id] ?? 0;
+      startDegree = pitched && wasOn ? value : this.state.lastDegree[track.id] ?? 0;
       if (!wasOn) {
-        this.handlers.onSetPad(track.id, step, track.type === 'drum' ? 1 : startDegree);
-        this.handlers.onPreview(track.id, track.type === 'drum' ? 0 : startDegree);
+        this.handlers.onSetPad(track.id, step, pitched ? startDegree : 1);
+        this.handlers.onPreview(track.id, pitched ? startDegree : 0);
+      }
+      if (pitched) {
+        // La réglette s'ouvre tout de suite : l'enfant voit où sont les notes.
+        this.picker.show({
+          rect: pad.getBoundingClientRect(),
+          color: track.color,
+          degree: startDegree,
+          names: this.handlers.noteNames(track.id),
+        });
       }
     });
 
     pad.addEventListener('pointermove', (e) => {
-      if (e.pointerId !== activePointer || track.type !== 'pitch') return;
-      const dy = startY - e.clientY;
-      if (Math.abs(dy) < 10) return;
+      if (e.pointerId !== activePointer || !pitched) return;
+      // Tant que le doigt n'a pas bougé, un simple appui reste un appui.
+      if (!moved && Math.abs(startY - e.clientY) < 12) return;
       moved = true;
-      const degree = clamp(startDegree + Math.round(dy / 18), 0, MAX_DEGREE);
+      const degree = this.picker.degreeAt(e.clientY);
+      this.picker.highlight(degree);
       if (degree !== this.state.patterns[track.id][step]) {
         this.handlers.onSetPad(track.id, step, degree);
         this.handlers.onPreview(track.id, degree);
@@ -276,6 +308,7 @@ export class UI {
       if (e.pointerId !== activePointer) return;
       activePointer = null;
       release(pad, e.pointerId);
+      if (pitched) this.picker.hide();
       if (wasOn && !moved) this.handlers.onSetPad(track.id, step, null);
     };
     pad.addEventListener('pointerup', end);
@@ -400,7 +433,111 @@ export class UI {
     const surprise = this.root.querySelector('#surprise');
     surprise.innerHTML = icon('magic');
     surprise.addEventListener('click', () => this.handlers.onSurprise());
+    const songs = this.root.querySelector('#songs');
+    songs.innerHTML = icon('songs');
+    songs.addEventListener('click', () => this.openSongs());
   }
+
+  // --- Mes morceaux : six emplacements de sauvegarde ---------------------------
+
+  buildSongs() {
+    const panel = document.createElement('div');
+    panel.id = 'songs-panel';
+    panel.className = 'modal hidden';
+    panel.innerHTML = `
+      <div class="modal-box">
+        <div class="modal-head">
+          <h2>Mes morceaux</h2>
+          <button class="close-btn" aria-label="Fermer">${icon('close')}</button>
+        </div>
+        <div class="song-grid"></div>
+        <p class="modal-hint">« Garder » enregistre le morceau du moment. « Jouer » le ressort.</p>
+      </div>`;
+    panel.querySelector('.close-btn').addEventListener('click', () => this.closeSongs());
+    panel.addEventListener('pointerdown', (e) => {
+      if (e.target === panel) this.closeSongs();   // toucher à côté referme
+    });
+
+    const grid = panel.querySelector('.song-grid');
+    for (let i = 0; i < SLOTS; i++) {
+      const card = document.createElement('div');
+      card.className = 'song-card';
+      card.dataset.slot = String(i);
+      card.innerHTML = `
+        <div class="song-top"><span class="song-num">${i + 1}</span><span class="song-tag"></span></div>
+        <div class="song-preview"></div>
+        <div class="song-actions">
+          <button class="song-save">${icon('save')}<span>Garder</span></button>
+          <button class="song-load">${icon('open')}<span>Jouer</span></button>
+        </div>`;
+
+      const saveBtn = card.querySelector('.song-save');
+      const loadBtn = card.querySelector('.song-load');
+      let confirmTimer = null;
+      const resetSave = () => {
+        clearTimeout(confirmTimer);
+        saveBtn.classList.remove('confirm', 'done');
+        saveBtn.querySelector('span').textContent = 'Garder';
+      };
+      saveBtn.addEventListener('click', () => {
+        // Écraser un morceau existant demande deux appuis : on ne perd rien par erreur.
+        if (card.classList.contains('filled') && !saveBtn.classList.contains('confirm')) {
+          saveBtn.classList.add('confirm');
+          saveBtn.querySelector('span').textContent = 'Sûr ?';
+          confirmTimer = setTimeout(resetSave, 2500);
+          return;
+        }
+        resetSave();
+        this.handlers.onSongSave(i);
+        saveBtn.classList.add('done');
+        saveBtn.querySelector('span').textContent = 'Gardé !';
+        confirmTimer = setTimeout(resetSave, 1400);
+        this.refreshSongs();
+      });
+      loadBtn.addEventListener('click', () => {
+        if (!card.classList.contains('filled')) return;
+        this.handlers.onSongLoad(i);
+        this.closeSongs();
+      });
+
+      card.saveBtn = saveBtn;
+      card.resetSave = resetSave;
+      grid.appendChild(card);
+    }
+
+    this.root.appendChild(panel);
+    this.songsPanel = panel;
+  }
+
+  openSongs() {
+    this.refreshSongs();
+    this.songsPanel.classList.remove('hidden');
+  }
+
+  closeSongs() {
+    this.songsPanel.querySelectorAll('.song-card').forEach((c) => c.resetSave());
+    this.songsPanel.classList.add('hidden');
+  }
+
+  refreshSongs() {
+    const slots = this.handlers.getSlots();
+    this.songsPanel.querySelectorAll('.song-card').forEach((card) => {
+      const slot = slots[Number(card.dataset.slot)];
+      card.classList.toggle('filled', !!slot);
+      const tag = card.querySelector('.song-tag');
+      const preview = card.querySelector('.song-preview');
+      if (!slot) {
+        tag.textContent = 'vide';
+        preview.innerHTML = '';
+        return;
+      }
+      const style = getStyle(slot.data.styleId);
+      tag.innerHTML = `${icon(style.icon)}<span>${style.label} · ${Math.round(slot.data.tempo)}</span>`;
+      preview.innerHTML = previewSvg(slot.data.phrases?.[slot.data.phraseIndex] || slot.data.phrases?.[0]);
+    });
+  }
+
+
 
   // --- Rafraîchissement --------------------------------------------------------
 
