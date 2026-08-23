@@ -1,19 +1,37 @@
-// Interface : grille de pads, potards tactiles, sélecteurs de style et de tonalité.
-import { TRACKS, STYLES, KEYS, STEPS, MAX_DEGREE } from './patterns.js';
+// Interface : barres du haut, grille de motif, mode live (clavier + effets), potards.
+import {
+  TRACKS, STYLES, KEYS, STEPS, MAX_DEGREE, PHRASES, PHRASE_NAMES, PUNCH_FX,
+  LIVE_TRACKS, isEmptyPhrase,
+} from './patterns.js';
+import { icon } from './icons.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+/** La capture du pointeur peut échouer (doigt déjà relâché) : ça ne doit rien casser. */
+function capture(el, pointerId) {
+  try { el.setPointerCapture(pointerId); } catch { /* pointeur déjà parti */ }
+}
+function release(el, pointerId) {
+  try {
+    if (el.hasPointerCapture(pointerId)) el.releasePointerCapture(pointerId);
+  } catch { /* pointeur déjà parti */ }
+}
+const LIVE_KEYS = 10;        // deux octaves de gamme pentatonique
+const LONG_PRESS_MS = 550;
+
 /** Potard rond, réglable au doigt (glisser vers le haut = augmenter). */
-export function createKnob({ emoji, label, min, max, value, step = 1, format, onChange }) {
+export function createKnob({ iconName, label, min, max, value, step = 1, format, onChange }) {
   const el = document.createElement('div');
   el.className = 'knob';
   el.innerHTML = `
-    <svg viewBox="0 0 100 100" aria-hidden="true">
-      <circle class="knob-bg" cx="50" cy="50" r="38"></circle>
-      <path class="knob-arc" d=""></path>
-      <line class="knob-pointer" x1="50" y1="50" x2="50" y2="16"></line>
-    </svg>
-    <div class="knob-emoji">${emoji}</div>
+    <div class="knob-dial">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="knob-bg" cx="50" cy="50" r="38"></circle>
+        <path class="knob-arc" d=""></path>
+        <line class="knob-pointer" x1="50" y1="50" x2="50" y2="16"></line>
+      </svg>
+      <span class="knob-icon">${icon(iconName)}</span>
+    </div>
     <div class="knob-label">${label}</div>
     <div class="knob-value"></div>`;
 
@@ -21,15 +39,16 @@ export function createKnob({ emoji, label, min, max, value, step = 1, format, on
   const pointer = el.querySelector('.knob-pointer');
   const valueEl = el.querySelector('.knob-value');
   let current = value;
-
-  const START = -135, END = 135; // degrés de rotation utiles
+  const START = -135, END = 135;
 
   function render() {
     const t = (current - min) / (max - min);
     const angle = START + t * (END - START);
     const rad = ((angle - 90) * Math.PI) / 180;
-    pointer.setAttribute('x2', String(50 + Math.cos(rad) * 34));
-    pointer.setAttribute('y2', String(50 + Math.sin(rad) * 34));
+    pointer.setAttribute('x1', String(50 + Math.cos(rad) * 21));
+    pointer.setAttribute('y1', String(50 + Math.sin(rad) * 21));
+    pointer.setAttribute('x2', String(50 + Math.cos(rad) * 33));
+    pointer.setAttribute('y2', String(50 + Math.sin(rad) * 33));
     const a0 = ((START - 90) * Math.PI) / 180;
     const large = angle - START > 180 ? 1 : 0;
     arc.setAttribute('d', [
@@ -41,31 +60,33 @@ export function createKnob({ emoji, label, min, max, value, step = 1, format, on
 
   function set(v, notify = true) {
     const snapped = Math.round(clamp(v, min, max) / step) * step;
-    if (snapped === current) return;
+    if (Math.abs(snapped - current) < step / 2) return;
     current = snapped;
     render();
     if (notify) onChange(current);
   }
 
-  let dragStartY = 0, dragStartValue = 0;
+  let startY = 0, startValue = 0, activePointer = null;
   el.addEventListener('pointerdown', (e) => {
-    el.setPointerCapture(e.pointerId);
+    capture(el, e.pointerId);
     el.classList.add('active');
-    dragStartY = e.clientY;
-    dragStartValue = current;
+    activePointer = e.pointerId;
+    startY = e.clientY;
+    startValue = current;
     e.preventDefault();
   });
   el.addEventListener('pointermove', (e) => {
-    if (!el.hasPointerCapture(e.pointerId)) return;
-    const dy = dragStartY - e.clientY;
-    set(dragStartValue + (dy / 140) * (max - min));
+    if (e.pointerId !== activePointer) return;
+    set(startValue + ((startY - e.clientY) / 150) * (max - min));
   });
-  const release = (e) => {
-    if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+  const end = (e) => {
+    if (e.pointerId !== activePointer) return;
+    activePointer = null;
+    release(el, e.pointerId);
     el.classList.remove('active');
   };
-  el.addEventListener('pointerup', release);
-  el.addEventListener('pointercancel', release);
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
   el.addEventListener('dblclick', () => set(value));
 
   render();
@@ -77,7 +98,7 @@ export class UI {
     this.root = root;
     this.state = state;
     this.handlers = handlers;
-    this.pads = {};   // trackId -> [éléments]
+    this.pads = {};
     this.knobs = {};
     this.currentStep = -1;
     this.build();
@@ -86,12 +107,17 @@ export class UI {
   build() {
     this.buildStyles();
     this.buildKeys();
+    this.buildViews();
+    this.buildPhrases();
     this.buildGrid();
+    this.buildFxBank();
+    this.buildKeyboard();
     this.buildKnobs();
-    this.buildFx();
     this.buildTransport();
     this.refreshAll();
   }
+
+  // --- Barres du haut --------------------------------------------------------
 
   buildStyles() {
     const bar = this.root.querySelector('#styles');
@@ -99,7 +125,7 @@ export class UI {
       const b = document.createElement('button');
       b.className = 'chip style-chip';
       b.dataset.style = style.id;
-      b.innerHTML = `<span class="chip-emoji">${style.emoji}</span><span class="chip-label">${style.label}</span>`;
+      b.innerHTML = `${icon(style.icon)}<span class="chip-label">${style.label}</span>`;
       b.addEventListener('click', () => this.handlers.onStyle(style.id));
       bar.appendChild(b);
     });
@@ -115,13 +141,65 @@ export class UI {
       b.addEventListener('click', () => this.handlers.onKey(i));
       bar.appendChild(b);
     });
-    const mode = document.createElement('button');
-    mode.className = 'chip mode-chip';
-    mode.id = 'mode-btn';
-    mode.addEventListener('click', () => this.handlers.onToggleMode());
-    bar.appendChild(mode);
-    this.modeBtn = mode;
+    this.modeBtn = document.createElement('button');
+    this.modeBtn.className = 'chip mode-chip';
+    this.modeBtn.addEventListener('click', () => this.handlers.onToggleMode());
+    bar.appendChild(this.modeBtn);
   }
+
+  buildViews() {
+    const wrap = this.root.querySelector('#views');
+    const VIEWS = [
+      { id: 'motif', icon: 'grid', label: 'Motif' },
+      { id: 'live', icon: 'keys', label: 'Live' },
+    ];
+    VIEWS.forEach((view) => {
+      const b = document.createElement('button');
+      b.className = 'view-tab';
+      b.dataset.view = view.id;
+      b.innerHTML = `${icon(view.icon)}<span>${view.label}</span>`;
+      b.addEventListener('click', () => this.handlers.onView(view.id));
+      wrap.appendChild(b);
+    });
+  }
+
+  /** Phrases A à D : appui = enchaîner, appui long = copier la phrase en cours. */
+  buildPhrases() {
+    const wrap = this.root.querySelector('#phrases');
+    for (let i = 0; i < PHRASES; i++) {
+      const b = document.createElement('button');
+      b.className = 'phrase-btn';
+      b.dataset.phrase = String(i);
+      b.innerHTML = `<span class="phrase-name">${PHRASE_NAMES[i]}</span><span class="phrase-dot"></span>`;
+      let timer = null, longPressed = false;
+      b.addEventListener('pointerdown', (e) => {
+        capture(b, e.pointerId);
+        longPressed = false;
+        timer = setTimeout(() => {
+          longPressed = true;
+          b.classList.add('copied');
+          setTimeout(() => b.classList.remove('copied'), 450);
+          this.handlers.onPhraseCopy(i);
+        }, LONG_PRESS_MS);
+      });
+      const end = (e) => {
+        release(b, e.pointerId);
+        clearTimeout(timer);
+        if (!longPressed) this.handlers.onPhraseSelect(i);
+      };
+      b.addEventListener('pointerup', end);
+      b.addEventListener('pointercancel', () => clearTimeout(timer));
+      wrap.appendChild(b);
+    }
+
+    this.chainBtn = document.createElement('button');
+    this.chainBtn.className = 'tool-btn';
+    this.chainBtn.innerHTML = `${icon('link')}<span>Chaîne</span>`;
+    this.chainBtn.addEventListener('click', () => this.handlers.onChainToggle());
+    this.root.querySelector('#phrase-tools').appendChild(this.chainBtn);
+  }
+
+  // --- Vue « motif » ---------------------------------------------------------
 
   buildGrid() {
     const grid = this.root.querySelector('#grid');
@@ -129,12 +207,13 @@ export class UI {
       const row = document.createElement('div');
       row.className = 'row';
       row.style.setProperty('--c', track.color);
+      row.dataset.track = track.id;
 
       const toggle = document.createElement('button');
       toggle.className = 'track-btn';
       toggle.dataset.track = track.id;
-      toggle.title = track.label;
-      toggle.innerHTML = `<span class="track-emoji">${track.emoji}</span>`;
+      toggle.setAttribute('aria-label', track.label);
+      toggle.innerHTML = icon(track.icon);
       toggle.addEventListener('click', () => this.handlers.onToggleTrack(track.id));
       row.appendChild(toggle);
 
@@ -154,8 +233,8 @@ export class UI {
 
       const dice = document.createElement('button');
       dice.className = 'row-btn';
-      dice.textContent = '🎲';
-      dice.title = 'Motif au hasard';
+      dice.setAttribute('aria-label', `Motif au hasard : ${track.label}`);
+      dice.innerHTML = icon('dice');
       dice.addEventListener('click', () => this.handlers.onRandomTrack(track.id));
       row.appendChild(dice);
 
@@ -164,11 +243,12 @@ export class UI {
   }
 
   attachPadEvents(pad, track, step) {
-    let wasOn = false, moved = false, startY = 0, startDegree = 0;
+    let wasOn = false, moved = false, startY = 0, startDegree = 0, activePointer = null;
 
     pad.addEventListener('pointerdown', (e) => {
-      pad.setPointerCapture(e.pointerId);
+      capture(pad, e.pointerId);
       e.preventDefault();
+      activePointer = e.pointerId;
       const value = this.state.patterns[track.id][step];
       wasOn = track.type === 'drum' ? value === 1 : value !== null;
       moved = false;
@@ -181,7 +261,7 @@ export class UI {
     });
 
     pad.addEventListener('pointermove', (e) => {
-      if (!pad.hasPointerCapture(e.pointerId) || track.type !== 'pitch') return;
+      if (e.pointerId !== activePointer || track.type !== 'pitch') return;
       const dy = startY - e.clientY;
       if (Math.abs(dy) < 10) return;
       moved = true;
@@ -193,62 +273,32 @@ export class UI {
     });
 
     const end = (e) => {
-      if (pad.hasPointerCapture(e.pointerId)) pad.releasePointerCapture(e.pointerId);
+      if (e.pointerId !== activePointer) return;
+      activePointer = null;
+      release(pad, e.pointerId);
       if (wasOn && !moved) this.handlers.onSetPad(track.id, step, null);
     };
     pad.addEventListener('pointerup', end);
     pad.addEventListener('pointercancel', end);
   }
 
-  buildKnobs() {
-    const wrap = this.root.querySelector('#knobs');
-    const add = (key, cfg) => {
-      const knob = createKnob(cfg);
-      this.knobs[key] = knob;
-      wrap.appendChild(knob.el);
-    };
-    add('tempo', {
-      emoji: '🏃', label: 'Vitesse', min: 60, max: 180, step: 1, value: this.state.tempo,
-      format: (v) => `${Math.round(v)}`, onChange: (v) => this.handlers.onTempo(v),
-    });
-    add('transpose', {
-      emoji: '🎚️', label: 'Hauteur', min: -12, max: 12, step: 1, value: 0,
-      format: (v) => (v > 0 ? `+${v}` : `${v}`), onChange: (v) => this.handlers.onTranspose(v),
-    });
-    add('filter', {
-      emoji: '🌫️', label: 'Filtre', min: 0, max: 1, step: 0.01, value: this.state.filter,
-      format: (v) => `${Math.round(v * 100)}`, onChange: (v) => this.handlers.onFilter(v),
-    });
-    add('delay', {
-      emoji: '🔁', label: 'Écho', min: 0, max: 1, step: 0.01, value: this.state.delay,
-      format: (v) => `${Math.round(v * 100)}`, onChange: (v) => this.handlers.onDelay(v),
-    });
-    add('space', {
-      emoji: '🌌', label: 'Espace', min: 0, max: 1, step: 0.01, value: this.state.space,
-      format: (v) => `${Math.round(v * 100)}`, onChange: (v) => this.handlers.onSpace(v),
-    });
-  }
+  // --- Vue « live » ----------------------------------------------------------
 
-  buildFx() {
+  buildFxBank() {
     const wrap = this.root.querySelector('#fx');
-    const FX = [
-      { id: 'sweep',  emoji: '🌀', label: 'Balayage' },
-      { id: 'repeat', emoji: '⚡', label: 'Répète' },
-      { id: 'space',  emoji: '🚀', label: 'Espace' },
-      { id: 'slow',   emoji: '🐢', label: 'Ralenti' },
-    ];
-    FX.forEach((fx) => {
+    PUNCH_FX.forEach((fx) => {
       const b = document.createElement('button');
       b.className = 'fx-btn';
-      b.innerHTML = `<span class="fx-emoji">${fx.emoji}</span><span class="fx-label">${fx.label}</span>`;
+      b.dataset.fx = fx.id;
+      b.innerHTML = `${icon(fx.icon)}<span class="fx-label">${fx.label}</span>`;
       const on = (e) => {
         e.preventDefault();
-        b.setPointerCapture(e.pointerId);
+        capture(b, e.pointerId);
         b.classList.add('active');
         this.handlers.onFx(fx.id, true);
       };
       const off = (e) => {
-        if (b.hasPointerCapture(e.pointerId)) b.releasePointerCapture(e.pointerId);
+        release(b, e.pointerId);
         if (!b.classList.contains('active')) return;
         b.classList.remove('active');
         this.handlers.onFx(fx.id, false);
@@ -260,20 +310,108 @@ export class UI {
     });
   }
 
+  buildKeyboard() {
+    const instruments = this.root.querySelector('#live-instruments');
+    LIVE_TRACKS.forEach((id) => {
+      const track = TRACKS.find((t) => t.id === id);
+      const b = document.createElement('button');
+      b.className = 'instr-btn';
+      b.dataset.instrument = id;
+      b.style.setProperty('--c', track.color);
+      b.innerHTML = `${icon(track.icon)}<span>${track.label}</span>`;
+      b.addEventListener('click', () => this.handlers.onLiveTrack(id));
+      instruments.appendChild(b);
+    });
+
+    const octave = this.root.querySelector('#octave');
+    [['minus', -1], ['plus', 1]].forEach(([name, delta]) => {
+      const b = document.createElement('button');
+      b.className = 'oct-btn';
+      b.innerHTML = icon(name);
+      b.setAttribute('aria-label', delta > 0 ? 'Plus aigu' : 'Plus grave');
+      b.addEventListener('click', () => this.handlers.onOctave(delta));
+      octave.appendChild(b);
+    });
+    this.octaveLabel = this.root.querySelector('#octave-value');
+
+    const kb = this.root.querySelector('#keyboard');
+    this.keys = [];
+    for (let degree = 0; degree < LIVE_KEYS; degree++) {
+      const key = document.createElement('button');
+      key.className = 'key';
+      if (degree % 5 === 0) key.classList.add('root');
+      key.innerHTML = '<span class="key-dot"></span>';
+      const down = (e) => {
+        e.preventDefault();
+        capture(key, e.pointerId);
+        key.classList.add('down');
+        this.handlers.onKeyDown(degree, e.pointerId);
+      };
+      const up = (e) => {
+        release(key, e.pointerId);
+        key.classList.remove('down');
+        this.handlers.onKeyUp(e.pointerId);
+      };
+      key.addEventListener('pointerdown', down);
+      key.addEventListener('pointerup', up);
+      key.addEventListener('pointercancel', up);
+      kb.appendChild(key);
+      this.keys.push(key);
+    }
+  }
+
+  // --- Pied de page -----------------------------------------------------------
+
+  buildKnobs() {
+    const wrap = this.root.querySelector('#knobs');
+    const add = (key, cfg) => {
+      const knob = createKnob(cfg);
+      this.knobs[key] = knob;
+      wrap.appendChild(knob.el);
+    };
+    add('tempo', {
+      iconName: 'speed', label: 'Vitesse', min: 60, max: 180, step: 1, value: this.state.tempo,
+      format: (v) => `${Math.round(v)}`, onChange: (v) => this.handlers.onTempo(v),
+    });
+    add('transpose', {
+      iconName: 'pitch', label: 'Hauteur', min: -12, max: 12, step: 1, value: this.state.transpose,
+      format: (v) => (v > 0 ? `+${v}` : `${v}`), onChange: (v) => this.handlers.onTranspose(v),
+    });
+    add('filter', {
+      iconName: 'filter', label: 'Filtre', min: 0, max: 1, step: 0.01, value: this.state.filter,
+      format: (v) => `${Math.round(v * 100)}`, onChange: (v) => this.handlers.onFilter(v),
+    });
+    add('delay', {
+      iconName: 'echo', label: 'Écho', min: 0, max: 1, step: 0.01, value: this.state.delay,
+      format: (v) => `${Math.round(v * 100)}`, onChange: (v) => this.handlers.onDelay(v),
+    });
+    add('space', {
+      iconName: 'space', label: 'Espace', min: 0, max: 1, step: 0.01, value: this.state.space,
+      format: (v) => `${Math.round(v * 100)}`, onChange: (v) => this.handlers.onSpace(v),
+    });
+  }
+
   buildTransport() {
     this.playBtn = this.root.querySelector('#play');
     this.playBtn.addEventListener('click', () => this.handlers.onPlayToggle());
-    this.root.querySelector('#clear').addEventListener('click', () => this.handlers.onClear());
-    this.root.querySelector('#surprise').addEventListener('click', () => this.handlers.onSurprise());
+    const clear = this.root.querySelector('#clear');
+    clear.innerHTML = icon('trash');
+    clear.addEventListener('click', () => this.handlers.onClear());
+    const surprise = this.root.querySelector('#surprise');
+    surprise.innerHTML = icon('magic');
+    surprise.addEventListener('click', () => this.handlers.onSurprise());
   }
 
-  // --- Rafraîchissement ----------------------------------------------------
+  // --- Rafraîchissement --------------------------------------------------------
 
   refreshAll() {
     this.refreshPads();
     this.refreshTracks();
     this.refreshChips();
+    this.refreshPhrases();
     this.refreshKnobs();
+    this.refreshView();
+    this.refreshLive();
   }
 
   refreshPads() {
@@ -283,7 +421,6 @@ export class UI {
         const v = values[i];
         const on = track.type === 'drum' ? v === 1 : v !== null;
         pad.classList.toggle('on', on);
-        // Sur une piste mélodique, la hauteur de la barre montre la note jouée.
         const height = track.type === 'drum' ? 100 : 25 + ((v ?? 0) / MAX_DEGREE) * 75;
         pad.querySelector('.fill').style.height = on ? `${height}%` : '0%';
       });
@@ -307,8 +444,18 @@ export class UI {
       c.classList.toggle('selected', Number(c.dataset.key) === this.state.keyIndex);
     });
     const major = this.state.mode === 'major';
-    this.modeBtn.textContent = major ? '☀️' : '🌙';
+    this.modeBtn.innerHTML = `${icon(major ? 'sun' : 'moon')}<span class="chip-label">${major ? 'joyeux' : 'mystère'}</span>`;
     this.modeBtn.classList.toggle('minor', !major);
+  }
+
+  refreshPhrases() {
+    this.root.querySelectorAll('.phrase-btn').forEach((b) => {
+      const i = Number(b.dataset.phrase);
+      b.classList.toggle('selected', i === this.state.phraseIndex);
+      b.classList.toggle('queued', i === this.state.queuedPhrase);
+      b.classList.toggle('filled', !isEmptyPhrase(this.state.phrases[i]));
+    });
+    this.chainBtn.classList.toggle('on', this.state.chain);
   }
 
   refreshKnobs() {
@@ -319,8 +466,26 @@ export class UI {
     this.knobs.space.set(this.state.space);
   }
 
+  refreshView() {
+    this.root.querySelectorAll('.view-tab').forEach((t) => {
+      t.classList.toggle('selected', t.dataset.view === this.state.view);
+    });
+    this.root.querySelector('#view-motif').classList.toggle('hidden', this.state.view !== 'motif');
+    this.root.querySelector('#view-live').classList.toggle('hidden', this.state.view !== 'live');
+  }
+
+  refreshLive() {
+    const track = TRACKS.find((t) => t.id === this.state.liveTrack);
+    this.root.querySelectorAll('.instr-btn').forEach((b) => {
+      b.classList.toggle('selected', b.dataset.instrument === this.state.liveTrack);
+    });
+    this.root.querySelector('#keyboard').style.setProperty('--c', track.color);
+    const oct = this.state.octave;
+    this.octaveLabel.textContent = oct === 0 ? 'normal' : oct > 0 ? `+${oct}` : `${oct}`;
+  }
+
   setPlaying(playing) {
-    this.playBtn.textContent = playing ? '⏹' : '▶️';
+    this.playBtn.innerHTML = icon(playing ? 'stop' : 'play');
     this.playBtn.classList.toggle('playing', playing);
   }
 

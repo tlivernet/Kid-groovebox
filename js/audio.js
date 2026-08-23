@@ -42,12 +42,23 @@ export class AudioEngine {
     this.master.gain.value = 0.9;
     this.master.connect(this.limiter);
 
+    // Étage « robot » : le son passe soit propre, soit dans un quantificateur.
+    this.crushDry = ctx.createGain();
+    this.crushWet = ctx.createGain();
+    this.crushWet.gain.value = 0;
+    this.shaper = ctx.createWaveShaper();
+    this.shaper.curve = this.makeCrushCurve(6);
+    this.crushDry.connect(this.master);
+    this.crushWet.connect(this.shaper);
+    this.shaper.connect(this.master);
+
     // Filtre global (le « potar » filtre + l'effet balayage).
     this.filter = ctx.createBiquadFilter();
     this.filter.type = 'lowpass';
     this.filter.frequency.value = 18000;
     this.filter.Q.value = 1;
-    this.filter.connect(this.master);
+    this.filter.connect(this.crushDry);
+    this.filter.connect(this.crushWet);
 
     // Entrée commune de tous les instruments.
     this.bus = ctx.createGain();
@@ -96,6 +107,16 @@ export class AudioEngine {
     const data = buf.getChannelData(0);
     for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
     return buf;
+  }
+
+  /** Courbe en escalier : réduit le son à quelques niveaux (effet 8 bits). */
+  makeCrushCurve(levels) {
+    const curve = new Float32Array(1024);
+    for (let i = 0; i < curve.length; i++) {
+      const x = (i / (curve.length - 1)) * 2 - 1;
+      curve[i] = Math.round(x * levels) / levels * 0.92;
+    }
+    return curve;
   }
 
   makeImpulse(seconds, decay) {
@@ -289,5 +310,109 @@ export class AudioEngine {
         wave, peak: 0.16, cutoff: 2200, attack: 0.02, detune: i % 2 ? 6 : -6,
       });
     });
+  }
+
+  // --- Jeu en direct : notes tenues tant que le doigt reste posé -------------
+
+  /** Démarre une note (ou un accord) et renvoie de quoi l'arrêter. */
+  noteOn(trackId, midis) {
+    const t = this.ctx.currentTime;
+    const cfg = {
+      bass:  { wave: this.sound.bassWave  || 'sawtooth', cutoff: 900,  peak: 0.40, detunes: [0] },
+      chord: { wave: this.sound.chordWave || 'triangle', cutoff: 2400, peak: 0.13, detunes: [-7, 7] },
+      lead:  { wave: this.sound.leadWave  || 'square',   cutoff: 3800, peak: 0.22, detunes: [-6, 6] },
+    }[trackId] || { wave: 'square', cutoff: 3000, peak: 0.2, detunes: [0] };
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(cfg.peak, t + 0.014);
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = cfg.cutoff;
+    lp.connect(gain);
+    gain.connect(this.tracks[trackId] || this.bus);
+
+    const oscs = [];
+    for (const midi of midis) {
+      for (const detune of cfg.detunes) {
+        const osc = this.ctx.createOscillator();
+        osc.type = cfg.wave;
+        osc.frequency.value = midiToFreq(midi);
+        osc.detune.value = detune;
+        osc.connect(lp);
+        osc.start(t);
+        oscs.push(osc);
+      }
+    }
+    return { gain, oscs };
+  }
+
+  noteOff(handle) {
+    if (!handle) return;
+    const t = this.ctx.currentTime;
+    const g = handle.gain.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(Math.max(g.value, 0.0001), t);
+    g.exponentialRampToValueAtTime(0.0001, t + 0.3);
+    handle.oscs.forEach((osc) => osc.stop(t + 0.34));
+  }
+
+  // --- Effets de scène -------------------------------------------------------
+
+  setCrush(on) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.crushDry.gain.setTargetAtTime(on ? 0 : 1, t, 0.01);
+    this.crushWet.gain.setTargetAtTime(on ? 1 : 0, t, 0.01);
+  }
+
+  /** Ne laisse passer que la grosse caisse (effet « cassure »). */
+  setSoloKick(on, enabled) {
+    if (!this.ctx) return;
+    for (const [id, gain] of Object.entries(this.tracks)) {
+      const target = on ? (id === 'kick' ? 1 : 0) : (enabled[id] ? 1 : 0);
+      gain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.02);
+    }
+  }
+
+  /** Montée : un souffle qui grimpe, suivi d'une cymbale quand on relâche. */
+  startRise() {
+    if (this.rise) return;
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noise;
+    src.loop = true;
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 2.5;
+    bp.frequency.setValueAtTime(300, t);
+    bp.frequency.exponentialRampToValueAtTime(8000, t + 4);
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.22, t + 2.5);
+    src.connect(bp).connect(gain).connect(this.bus);
+    src.start(t);
+    this.rise = { src, gain };
+  }
+
+  stopRise(withCrash = true) {
+    if (!this.rise) return;
+    const t = this.ctx.currentTime;
+    const { src, gain } = this.rise;
+    this.rise = null;
+    gain.gain.cancelScheduledValues(t);
+    gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    src.stop(t + 0.16);
+    if (withCrash) this.crash(t);
+  }
+
+  crash(time) {
+    const src = this.noiseSource(time, 1.2);
+    const hp = this.ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 4500;
+    const g = this.env(time, 0.002, 1.1, 0.32);
+    src.connect(hp).connect(g).connect(this.tracks.hat);
   }
 }

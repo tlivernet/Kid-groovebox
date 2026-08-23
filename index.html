@@ -17,9 +17,9 @@
 </head>
 <body>
   <div id="start-screen">
-    <h1>🎛️ Ma Groovebox</h1>
-    <button id="start-btn">▶️<span>C'est parti&nbsp;!</span></button>
-    <p class="hint">Mets le son 🔊 et tourne la tablette à l'horizontale.</p>
+    <h1>Ma Groovebox</h1>
+    <button id="start-btn"><span class="start-icon"></span><span>C'est parti&nbsp;!</span></button>
+    <p class="hint">Monte le son et mets la tablette à l'horizontale.</p>
   </div>
 
   <header>
@@ -27,16 +27,39 @@
     <div id="keys" class="bar"></div>
   </header>
 
-  <main id="grid"></main>
+  <nav id="controlbar">
+    <div id="views" class="seg"></div>
+    <div id="phrases"></div>
+    <div id="phrase-tools"></div>
+  </nav>
+
+  <main>
+    <section id="view-motif" class="view">
+      <div id="grid"></div>
+    </section>
+
+    <section id="view-live" class="view hidden">
+      <div id="fx"></div>
+      <div id="live-bottom">
+        <div id="live-side">
+          <div id="live-instruments"></div>
+          <div id="octave-wrap">
+            <div id="octave"></div>
+            <div id="octave-value"></div>
+          </div>
+        </div>
+        <div id="keyboard"></div>
+      </div>
+    </section>
+  </main>
 
   <footer>
     <div id="transport">
-      <button id="play" class="big-btn">▶️</button>
-      <button id="surprise" class="small-btn" title="Surprise">🎁</button>
-      <button id="clear" class="small-btn" title="Tout effacer">🗑️</button>
+      <button id="play" class="big-btn" aria-label="Départ / arrêt"></button>
+      <button id="surprise" class="small-btn" aria-label="Surprise"></button>
+      <button id="clear" class="small-btn" aria-label="Effacer la phrase"></button>
     </div>
     <div id="knobs"></div>
-    <div id="fx"></div>
   </footer>
 
   <script type="module" src="./js/app.js"></script>

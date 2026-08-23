@@ -1,17 +1,21 @@
-// Assemblage : état de l'application, sauvegarde, effets, démarrage.
-import { TRACKS, STYLES, STEPS, MAX_DEGREE, getStyle, clonePatterns } from './patterns.js';
+// Assemblage : état, sauvegarde, effets de scène, jeu en direct, démarrage.
+import {
+  TRACKS, STYLES, STEPS, MAX_DEGREE, PHRASES, TRACK_ROOT, KEYS,
+  getStyle, clonePatterns, emptyPatterns,
+} from './patterns.js';
 import { AudioEngine, degreeToMidi } from './audio.js';
 import { Sequencer } from './sequencer.js';
 import { UI } from './ui.js';
-import { TRACK_ROOT } from './patterns.js';
+import { icon } from './icons.js';
 
-const SAVE_KEY = 'kid-groovebox-v1';
-
+const SAVE_KEY = 'kid-groovebox-v2';
 const engine = new AudioEngine();
 
-function stateFromStyle(styleId) {
+// --- État -------------------------------------------------------------------
+
+function makeState(styleId) {
   const style = getStyle(styleId);
-  return {
+  const state = {
     styleId: style.id,
     tempo: style.tempo,
     keyIndex: 0,
@@ -22,33 +26,54 @@ function stateFromStyle(styleId) {
     delay: style.fx.delay,
     space: style.fx.space,
     enabled: Object.fromEntries(TRACKS.map((t) => [t.id, true])),
-    patterns: clonePatterns(style),
+    phrases: [clonePatterns(style), ...Array.from({ length: PHRASES - 1 }, emptyPatterns)],
+    phraseIndex: 0,
+    queuedPhrase: null,
+    chain: false,
     lastDegree: { bass: 0, chord: 0, lead: 4 },
+    view: 'motif',
+    liveTrack: 'lead',
+    octave: 0,
   };
+  // Raccourci vers la phrase en cours : tout le reste du code lit « state.patterns ».
+  Object.defineProperty(state, 'patterns', {
+    get() { return this.phrases[this.phraseIndex]; },
+    enumerable: false,
+  });
+  return state;
 }
 
 function load() {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return null;
-    const saved = JSON.parse(raw);
-    const base = stateFromStyle(saved.styleId);
-    // On ne garde que les champs connus : une sauvegarde abîmée ne casse rien.
-    for (const key of ['tempo', 'keyIndex', 'mode', 'transpose', 'swing', 'filter', 'delay', 'space']) {
-      if (typeof saved[key] === typeof base[key]) base[key] = saved[key];
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+    if (!saved) return null;
+    const state = makeState(saved.styleId);
+    for (const key of ['tempo', 'keyIndex', 'mode', 'transpose', 'swing', 'filter', 'delay', 'space',
+                       'view', 'liveTrack', 'octave', 'chain']) {
+      if (typeof saved[key] === typeof state[key]) state[key] = saved[key];
     }
     for (const t of TRACKS) {
-      if (typeof saved.enabled?.[t.id] === 'boolean') base.enabled[t.id] = saved.enabled[t.id];
-      const p = saved.patterns?.[t.id];
-      if (Array.isArray(p) && p.length === STEPS) base.patterns[t.id] = p;
+      if (typeof saved.enabled?.[t.id] === 'boolean') state.enabled[t.id] = saved.enabled[t.id];
     }
-    return base;
+    // Une sauvegarde abîmée ne doit jamais empêcher l'appli de démarrer.
+    if (Array.isArray(saved.phrases)) {
+      saved.phrases.slice(0, PHRASES).forEach((phrase, i) => {
+        for (const t of TRACKS) {
+          const steps = phrase?.[t.id];
+          if (Array.isArray(steps) && steps.length === STEPS) state.phrases[i][t.id] = steps;
+        }
+      });
+    }
+    if (Number.isInteger(saved.phraseIndex)) {
+      state.phraseIndex = Math.min(Math.max(saved.phraseIndex, 0), PHRASES - 1);
+    }
+    return state;
   } catch {
     return null;
   }
 }
 
-const state = load() || stateFromStyle(STYLES[0].id);
+const state = load() || makeState(STYLES[0].id);
 
 let saveTimer = null;
 function save() {
@@ -58,7 +83,7 @@ function save() {
   }, 400);
 }
 
-// --- Application des réglages au moteur -----------------------------------
+// --- Réglages appliqués au moteur -------------------------------------------
 
 function applySound() {
   engine.setSound(getStyle(state.styleId).sound);
@@ -72,15 +97,16 @@ function applyMix() {
   for (const t of TRACKS) engine.setTrackEnabled(t.id, state.enabled[t.id]);
 }
 
-// --- Génération aléatoire --------------------------------------------------
+// --- Génération aléatoire ----------------------------------------------------
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 function randomPattern(trackId) {
-  const out = new Array(STEPS).fill(trackId === 'kick' || trackId === 'snare' || trackId === 'hat' ? 0 : null);
+  const drum = ['kick', 'snare', 'hat'].includes(trackId);
+  const out = new Array(STEPS).fill(drum ? 0 : null);
   if (trackId === 'kick') {
     out[0] = 1;
-    for (let i = 2; i < STEPS; i += 2) if (Math.random() < 0.3) out[i] = 1;
+    for (let i = 2; i < STEPS; i += 2) if (Math.random() < 0.28) out[i] = 1;
     out[pick([4, 8, 10])] = 1;
   } else if (trackId === 'snare') {
     out[4] = 1; out[12] = 1;
@@ -101,24 +127,102 @@ function randomPattern(trackId) {
   return out;
 }
 
-// --- Prévisualisation d'une note en édition -------------------------------
+// --- Notes ------------------------------------------------------------------
+
+/** Note MIDI d'un degré, pour une piste donnée, dans la tonalité courante. */
+function midiFor(trackId, degree, extraOctaves = 0) {
+  const root = TRACK_ROOT[trackId] + KEYS[state.keyIndex].semitone + state.transpose + extraOctaves * 12;
+  return degreeToMidi(degree, root, state.mode);
+}
+
+function chordMidis(degree, extraOctaves = 0) {
+  return [degree, degree + 2, degree + 4].map((d) => midiFor('chord', d, extraOctaves));
+}
 
 function preview(trackId, degree) {
   if (!engine.ctx) return;
   const t = engine.ctx.currentTime + 0.01;
-  const shift = state.transpose;
   if (trackId === 'kick') engine.kick(t);
   else if (trackId === 'snare') engine.snare(t);
   else if (trackId === 'hat') engine.hat(t);
-  else if (trackId === 'bass') engine.bass(degreeToMidi(degree, TRACK_ROOT.bass + shift, state.mode), t, 0.3);
-  else if (trackId === 'lead') engine.lead(degreeToMidi(degree, TRACK_ROOT.lead + shift, state.mode), t, 0.3);
-  else if (trackId === 'chord') {
-    const root = TRACK_ROOT.chord + shift;
-    engine.chord([degree, degree + 2, degree + 4].map((d) => degreeToMidi(d, root, state.mode)), t, 0.6);
+  else if (trackId === 'bass') engine.bass(midiFor('bass', degree), t, 0.3);
+  else if (trackId === 'lead') engine.lead(midiFor('lead', degree), t, 0.3);
+  else if (trackId === 'chord') engine.chord(chordMidis(degree), t, 0.6);
+}
+
+// --- Effets de scène (tenus) --------------------------------------------------
+
+const fxActive = {};
+let brakeFrame = null;
+
+function setFx(id, active) {
+  fxActive[id] = active;
+  switch (id) {
+    case 'filter':
+      if (active) engine.setFilter(0.12, 9);
+      else engine.setFilter(state.filter, 1);
+      break;
+    case 'hyper':  sequencer.setStutter(active ? 1 : 0); break;
+    case 'repeat': sequencer.setStutter(active ? 2 : 0); break;
+    case 'loop':   sequencer.setStutter(active ? 4 : 0); break;
+    case 'slow':   sequencer.rate = active ? 2 : 1; break;
+    case 'turbo':  sequencer.rate = active ? 0.5 : 1; break;
+    case 'echo':
+      engine.setDelay(active ? 0.9 : state.delay);
+      engine.setDelayFeedback(active ? 0.62 : 0.35);
+      break;
+    case 'space':
+      engine.setSpace(active ? 1 : state.space);
+      engine.setDelayFeedback(active ? 0.6 : 0.35);
+      break;
+    case 'robot': engine.setCrush(active); break;
+    case 'drop':  engine.setSoloKick(active, state.enabled); break;
+    case 'rise':
+      if (active) engine.startRise();
+      else engine.stopRise(true);
+      break;
+    case 'brake': brake(active); break;
   }
 }
 
-// --- Câblage ---------------------------------------------------------------
+/** Frein : la musique ralentit jusqu'à s'arrêter, puis repart d'un coup. */
+function brake(active) {
+  cancelAnimationFrame(brakeFrame);
+  if (!active) {
+    sequencer.rate = 1;
+    engine.setFilter(state.filter, 1);
+    return;
+  }
+  const start = performance.now();
+  const step = () => {
+    const t = Math.min((performance.now() - start) / 900, 1);
+    sequencer.rate = 1 + t * t * 11;
+    engine.setFilter(state.filter * (1 - t * 0.85), 1 + t * 4);
+    if (t < 1) brakeFrame = requestAnimationFrame(step);
+  };
+  brakeFrame = requestAnimationFrame(step);
+}
+
+// --- Jeu au clavier ----------------------------------------------------------
+
+const heldNotes = new Map();  // identifiant de doigt -> voix en cours
+
+function keyDown(degree, pointerId) {
+  const track = state.liveTrack;
+  const midis = track === 'chord'
+    ? chordMidis(degree, state.octave)
+    : [midiFor(track, degree, state.octave)];
+  heldNotes.set(pointerId, engine.noteOn(track, midis));
+}
+
+function keyUp(pointerId) {
+  const handle = heldNotes.get(pointerId);
+  if (!handle) return;
+  engine.noteOff(handle);
+  heldNotes.delete(pointerId);
+}
+
+// --- Câblage -----------------------------------------------------------------
 
 const root = document.body;
 let sequencer = null;
@@ -126,8 +230,18 @@ let ui = null;
 
 const handlers = {
   onStyle(id) {
-    const fresh = stateFromStyle(id);
-    Object.assign(state, fresh, { keyIndex: state.keyIndex, transpose: state.transpose });
+    const style = getStyle(id);
+    // On charge le style dans la phrase en cours : les autres phrases sont conservées.
+    Object.assign(state, {
+      styleId: style.id,
+      tempo: style.tempo,
+      mode: style.mode,
+      swing: style.swing,
+      filter: style.fx.filter,
+      delay: style.fx.delay,
+      space: style.fx.space,
+    });
+    state.phrases[state.phraseIndex] = clonePatterns(style);
     applySound();
     applyMix();
     ui.refreshAll();
@@ -139,6 +253,22 @@ const handlers = {
     ui.refreshChips();
     save();
   },
+  onView(view) { state.view = view; ui.refreshView(); save(); },
+  onPhraseSelect(index) {
+    if (index === state.phraseIndex && state.queuedPhrase === null) return;
+    if (sequencer.playing) state.queuedPhrase = index;   // le changement tombe sur la mesure
+    else { state.phraseIndex = index; ui.refreshPads(); }
+    ui.refreshPhrases();
+    save();
+  },
+  onPhraseCopy(index) {
+    if (index === state.phraseIndex) return;
+    state.phrases[index] = JSON.parse(JSON.stringify(state.patterns));
+    handlers.onPhraseSelect(index);
+    ui.refreshPhrases();
+    save();
+  },
+  onChainToggle() { state.chain = !state.chain; ui.refreshPhrases(); save(); },
   onToggleTrack(id) {
     state.enabled[id] = !state.enabled[id];
     engine.setTrackEnabled(id, state.enabled[id]);
@@ -154,35 +284,44 @@ const handlers = {
       if (value !== null) state.lastDegree[trackId] = value;
     }
     ui.refreshPads();
+    ui.refreshPhrases();
     save();
   },
   onPreview: preview,
   onRandomTrack(id) {
     state.patterns[id] = randomPattern(id);
     ui.refreshPads();
+    ui.refreshPhrases();
     save();
   },
   onClear() {
-    for (const t of TRACKS) {
-      state.patterns[t.id] = new Array(STEPS).fill(t.type === 'drum' ? 0 : null);
-    }
+    state.phrases[state.phraseIndex] = emptyPatterns();
     ui.refreshPads();
+    ui.refreshPhrases();
     save();
   },
   onSurprise() {
     handlers.onStyle(pick(STYLES).id);
     for (const t of TRACKS) state.patterns[t.id] = randomPattern(t.id);
-    state.keyIndex = Math.floor(Math.random() * 7);
+    state.keyIndex = Math.floor(Math.random() * KEYS.length);
     state.mode = Math.random() < 0.5 ? 'major' : 'minor';
     ui.refreshAll();
     save();
   },
+  onLiveTrack(id) { state.liveTrack = id; ui.refreshLive(); save(); },
+  onOctave(delta) {
+    state.octave = Math.max(-1, Math.min(1, state.octave + delta));
+    ui.refreshLive();
+    save();
+  },
+  onKeyDown: keyDown,
+  onKeyUp: keyUp,
   onTempo(v) { state.tempo = v; engine.syncDelay(v); save(); },
   onTranspose(v) { state.transpose = v; save(); },
-  onFilter(v) { state.filter = v; if (!fxActive.sweep) engine.setFilter(v); save(); },
-  onDelay(v) { state.delay = v; engine.setDelay(v); save(); },
+  onFilter(v) { state.filter = v; if (!fxActive.filter) engine.setFilter(v); save(); },
+  onDelay(v) { state.delay = v; if (!fxActive.echo) engine.setDelay(v); save(); },
   onSpace(v) { state.space = v; if (!fxActive.space) engine.setSpace(v); save(); },
-  onFx(id, active) { setFx(id, active); },
+  onFx: setFx,
   onPlayToggle() {
     if (sequencer.playing) sequencer.stop();
     else sequencer.start();
@@ -190,35 +329,23 @@ const handlers = {
   },
 };
 
-const fxActive = { sweep: false, repeat: false, space: false, slow: false };
-
-function setFx(id, active) {
-  fxActive[id] = active;
-  if (id === 'sweep') {
-    if (active) engine.setFilter(0.12, 9);
-    else engine.setFilter(state.filter, 1);
-  } else if (id === 'repeat') {
-    sequencer.setStutter(active ? 2 : 0);
-  } else if (id === 'space') {
-    engine.setSpace(active ? 1 : state.space);
-    engine.setDelayFeedback(active ? 0.72 : 0.35);
-  } else if (id === 'slow') {
-    sequencer.halfTime = active;
-  }
-}
-
-// --- Démarrage -------------------------------------------------------------
+// --- Démarrage ---------------------------------------------------------------
 
 async function boot() {
   await engine.start();
   applySound();
   applyMix();
-  sequencer = new Sequencer(engine, state, (step) => ui.setPlayhead(step));
+  sequencer = new Sequencer(engine, state, {
+    onStep: (step) => ui.setPlayhead(step),
+    onPhrase: () => { ui.refreshPads(); ui.refreshPhrases(); },
+  });
   ui = new UI(root, state, handlers);
   document.getElementById('start-screen').classList.add('hidden');
   sequencer.start();
   ui.setPlaying(true);
   keepScreenAwake();
+  // Poignée de débogage : pratique pour inspecter l'état depuis la console.
+  window.groovebox = { state, engine, sequencer, handlers, ui };
 }
 
 async function keepScreenAwake() {
@@ -227,6 +354,7 @@ async function keepScreenAwake() {
   } catch { /* pas grave si refusé */ }
 }
 
+document.querySelector('#start-btn .start-icon').innerHTML = icon('play');
 document.getElementById('start-btn').addEventListener('click', boot, { once: true });
 
 // Confort tablette : pas de zoom accidentel, pas de menu contextuel.
@@ -235,8 +363,9 @@ document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('dblclick', (e) => e.preventDefault());
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && engine.ctx) engine.ctx.suspend();
-  else if (engine.ctx) engine.ctx.resume();
+  if (!engine.ctx) return;
+  if (document.hidden) engine.ctx.suspend();
+  else engine.ctx.resume();
 });
 
 if ('serviceWorker' in navigator) {

@@ -4,13 +4,20 @@
 export const STEPS = 16;
 
 export const TRACKS = [
-  { id: 'kick',  emoji: '🥁', label: 'Grosse caisse', type: 'drum',  color: '#ff5470' },
-  { id: 'snare', emoji: '👏', label: 'Caisse claire', type: 'drum',  color: '#ff9f43' },
-  { id: 'hat',   emoji: '✨', label: 'Charleston',    type: 'drum',  color: '#ffe14d' },
-  { id: 'bass',  emoji: '🐘', label: 'Basse',         type: 'pitch', color: '#4dd2ff' },
-  { id: 'chord', emoji: '🌈', label: 'Accords',       type: 'pitch', color: '#b57bff' },
-  { id: 'lead',  emoji: '🎵', label: 'Mélodie',       type: 'pitch', color: '#3ce88b' },
+  { id: 'kick',  icon: 'kick',  label: 'Grosse caisse', type: 'drum',  color: '#ff5470' },
+  { id: 'snare', icon: 'snare', label: 'Caisse claire', type: 'drum',  color: '#ff9f43' },
+  { id: 'hat',   icon: 'hat',   label: 'Charleston',    type: 'drum',  color: '#ffd23f' },
+  { id: 'bass',  icon: 'bass',  label: 'Basse',         type: 'pitch', color: '#3ec9ff' },
+  { id: 'chord', icon: 'chord', label: 'Accords',       type: 'pitch', color: '#b57bff' },
+  { id: 'lead',  icon: 'lead',  label: 'Mélodie',       type: 'pitch', color: '#3ce88b' },
 ];
+
+/** Nombre de phrases (motifs A, B, C, D) que l'on peut enchaîner. */
+export const PHRASES = 4;
+export const PHRASE_NAMES = ['A', 'B', 'C', 'D'];
+
+/** Pistes jouables au clavier du mode live. */
+export const LIVE_TRACKS = ['bass', 'chord', 'lead'];
 
 // Gammes pentatoniques (5 notes) : impossible de faire une fausse note.
 export const SCALES = {
@@ -52,7 +59,7 @@ function m(obj) {
 // Chaque style décrit : le tempo, la couleur des sons, le swing et les motifs de départ.
 export const STYLES = [
   {
-    id: 'techno', emoji: '🤖', label: 'Techno', tempo: 126, mode: 'minor', swing: 0,
+    id: 'techno', icon: 'robot', label: 'Techno', tempo: 126, mode: 'minor', swing: 0,
     sound: { kick: 'boom', snare: 'clap', hat: 'tight', bassWave: 'sawtooth', chordWave: 'sawtooth', leadWave: 'square' },
     fx: { filter: 0.85, delay: 0.25, space: 0.2 },
     patterns: {
@@ -65,7 +72,7 @@ export const STYLES = [
     },
   },
   {
-    id: 'rock', emoji: '🎸', label: 'Rock', tempo: 118, mode: 'major', swing: 0,
+    id: 'rock', icon: 'pick', label: 'Rock', tempo: 118, mode: 'major', swing: 0,
     sound: { kick: 'punch', snare: 'snare', hat: 'tight', bassWave: 'square', chordWave: 'sawtooth', leadWave: 'sawtooth' },
     fx: { filter: 1, delay: 0.1, space: 0.15 },
     patterns: {
@@ -78,7 +85,7 @@ export const STYLES = [
     },
   },
   {
-    id: 'hiphop', emoji: '🎤', label: 'Hip-Hop', tempo: 88, mode: 'minor', swing: 0.18,
+    id: 'hiphop', icon: 'mic', label: 'Hip-Hop', tempo: 88, mode: 'minor', swing: 0.18,
     sound: { kick: 'boom', snare: 'snare', hat: 'tight', bassWave: 'triangle', chordWave: 'triangle', leadWave: 'square' },
     fx: { filter: 0.8, delay: 0.2, space: 0.25 },
     patterns: {
@@ -91,7 +98,7 @@ export const STYLES = [
     },
   },
   {
-    id: 'reggae', emoji: '🌴', label: 'Reggae', tempo: 78, mode: 'major', swing: 0.1,
+    id: 'reggae', icon: 'palm', label: 'Reggae', tempo: 78, mode: 'major', swing: 0.1,
     sound: { kick: 'boom', snare: 'snare', hat: 'open', bassWave: 'sine', chordWave: 'square', leadWave: 'triangle' },
     fx: { filter: 0.75, delay: 0.45, space: 0.35 },
     patterns: {
@@ -104,7 +111,7 @@ export const STYLES = [
     },
   },
   {
-    id: 'disco', emoji: '🕺', label: 'Disco', tempo: 116, mode: 'major', swing: 0,
+    id: 'disco', icon: 'disco', label: 'Disco', tempo: 116, mode: 'major', swing: 0,
     sound: { kick: 'punch', snare: 'clap', hat: 'open', bassWave: 'sawtooth', chordWave: 'sawtooth', leadWave: 'square' },
     fx: { filter: 0.9, delay: 0.2, space: 0.25 },
     patterns: {
@@ -117,7 +124,7 @@ export const STYLES = [
     },
   },
   {
-    id: 'chill', emoji: '😴', label: 'Doux', tempo: 72, mode: 'major', swing: 0.16,
+    id: 'chill', icon: 'cloud', label: 'Doux', tempo: 72, mode: 'major', swing: 0.16,
     sound: { kick: 'soft', snare: 'brush', hat: 'tight', bassWave: 'sine', chordWave: 'triangle', leadWave: 'sine' },
     fx: { filter: 0.6, delay: 0.3, space: 0.5 },
     patterns: {
@@ -130,7 +137,7 @@ export const STYLES = [
     },
   },
   {
-    id: 'latino', emoji: '💃', label: 'Latino', tempo: 104, mode: 'minor', swing: 0,
+    id: 'latino', icon: 'maracas', label: 'Latino', tempo: 104, mode: 'minor', swing: 0,
     sound: { kick: 'punch', snare: 'clap', hat: 'tight', bassWave: 'triangle', chordWave: 'square', leadWave: 'triangle' },
     fx: { filter: 0.95, delay: 0.15, space: 0.2 },
     patterns: {
@@ -143,7 +150,7 @@ export const STYLES = [
     },
   },
   {
-    id: 'jeuvideo', emoji: '🎮', label: 'Jeu vidéo', tempo: 140, mode: 'major', swing: 0,
+    id: 'jeuvideo', icon: 'gamepad', label: 'Jeu vidéo', tempo: 140, mode: 'major', swing: 0,
     sound: { kick: 'punch', snare: 'snare', hat: 'tight', bassWave: 'square', chordWave: 'square', leadWave: 'square' },
     fx: { filter: 1, delay: 0.18, space: 0.1 },
     patterns: {
@@ -157,6 +164,23 @@ export const STYLES = [
   },
 ];
 
+// Effets tenus, dans l'esprit des « punch-in effects » de l'OP-Z :
+// on appuie, ça change, on relâche, la musique repart comme avant.
+export const PUNCH_FX = [
+  { id: 'filter',  icon: 'filter', label: 'Filtre' },
+  { id: 'repeat',  icon: 'repeat', label: 'Répète' },
+  { id: 'hyper',   icon: 'fast',   label: 'Hyper' },
+  { id: 'loop',    icon: 'loop',   label: 'Boucle' },
+  { id: 'slow',    icon: 'half',   label: 'Ralenti' },
+  { id: 'turbo',   icon: 'double', label: 'Turbo' },
+  { id: 'echo',    icon: 'echo',   label: 'Écho' },
+  { id: 'space',   icon: 'space',  label: 'Espace' },
+  { id: 'robot',   icon: 'robot',  label: 'Robot' },
+  { id: 'brake',   icon: 'brake',  label: 'Frein' },
+  { id: 'rise',    icon: 'rise',   label: 'Montée' },
+  { id: 'drop',    icon: 'drop',   label: 'Cassure' },
+];
+
 export function getStyle(id) {
   return STYLES.find((s) => s.id === id) || STYLES[0];
 }
@@ -166,4 +190,18 @@ export function clonePatterns(style) {
   const out = {};
   for (const track of TRACKS) out[track.id] = [...style.patterns[track.id]];
   return out;
+}
+
+/** Phrase vide : tous les pas éteints. */
+export function emptyPatterns() {
+  const out = {};
+  for (const track of TRACKS) {
+    out[track.id] = new Array(STEPS).fill(track.type === 'drum' ? 0 : null);
+  }
+  return out;
+}
+
+/** Une phrase contient-elle au moins une note ? */
+export function isEmptyPhrase(phrase) {
+  return TRACKS.every((t) => phrase[t.id].every((v) => (t.type === 'drum' ? !v : v === null)));
 }
