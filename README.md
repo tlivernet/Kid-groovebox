@@ -22,7 +22,7 @@ Une grille de 16 pas sur 6 couches. Chaque ligne se coupe ou se rallume d'un app
 | **Soleil / lune** | 1 appui | Joyeux (majeur) ou mystérieux (mineur) |
 | **Icône d'instrument** | 1 appui | Coupe ou rallume la couche |
 | **Pads** | 1 appui | Ajoute ou enlève un son sur ce temps |
-| **Pads mélodiques** | poser le doigt, puis glisser haut/bas | Une **réglette géante** s'ouvre sur toute la hauteur de l'écran : chaque note occupe une grosse bande avec son nom (do, ré, mi…), et la position du doigt désigne directement la note. On relâche, elle disparaît |
+| **Pads mélodiques** | poser le doigt, puis glisser haut/bas | Une **grande jauge** s'ouvre à côté du doigt, sur toute la hauteur de l'écran : le remplissage monte avec la note, un gros curseur affiche son nom (do, ré, mi…), et la position du doigt désigne directement la note. On relâche, elle disparaît |
 | **Dé** (à droite de chaque ligne) | 1 appui | Invente un motif pour cette ligne |
 | **Dossier** (en bas) | 1 appui | Ouvre « mes morceaux » : 6 emplacements de sauvegarde |
 
@@ -145,6 +145,10 @@ musical : copie et enchaînement des
 phrases, changement calé sur la mesure, clavier multi-touch, retour à la normale des douze effets,
 sauvegarde et rechargement.
 
+Les gestes tactiles sont testés avec de **vrais événements tactiles** (protocole Chrome DevTools) et
+non des événements simulés : c'est le seul moyen de voir le navigateur confisquer un glissé pour
+défiler, ce qui empêchait de choisir une note.
+
 ## Comment c'est fait
 
 ```
@@ -152,7 +156,7 @@ index.html            page unique
 styles.css            habillage « machine » + adaptations portrait / paysage / téléphone
 js/patterns.js        pistes, gammes, 8 styles (4 phrases + réglages de son chacun), effets
 js/songs.js           sérialisation du morceau et emplacements de sauvegarde
-js/picker.js          réglette de note agrandie
+js/picker.js          jauge de note agrandie
 js/overlay.js         voile visuel des effets live
 js/icons.js           toutes les icônes, dessinées en SVG (ni émoji ni police d'icônes)
 js/audio.js           moteur audio : percussions et synthés synthétisés, filtre, écho,

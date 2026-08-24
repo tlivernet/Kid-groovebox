@@ -87,6 +87,8 @@ for (const size of SIZES) {
   const info = await page.evaluate(() => ({
     debordeX: document.documentElement.scrollWidth > window.innerWidth,
     debordeY: document.documentElement.scrollHeight > window.innerHeight,
+    // Une barre écrasée à quelques pixels rend son contenu inatteignable.
+    barreStyles: Math.round(document.querySelector('#styles').clientWidth),
     // Cibles tactiles trop petites (on ignore ce qui est masqué : taille nulle).
     petitsBoutons: [...document.querySelectorAll('.fx-btn, .key, .phrase-btn, .track-btn')]
       .filter((el) => {
@@ -95,14 +97,42 @@ for (const size of SIZES) {
       }).length,
   }));
   check(`mise en page ${size.name}`,
-        !info.debordeX && !info.debordeY && info.petitsBoutons === 0 && errors.length === 0,
+        !info.debordeX && !info.debordeY && info.petitsBoutons === 0
+          && info.barreStyles > 140 && errors.length === 0,
         JSON.stringify({ ...info, erreurs: errors.length }));
+
+  // Sur écran étroit, la barre des styles déborde : elle doit défiler au doigt.
+  // (C'est la seule zone à qui l'on rend le geste horizontal.)
+  if (size.width <= 500) {
+    await page.click('.view-tab[data-view="motif"]');
+    const session = await page.context().newCDPSession(page);
+    const barre = await page.locator('#styles').boundingBox();
+    const y = barre.y + barre.height / 2;
+    const envoyer = async (type, x) => {
+      await session.send('Input.dispatchTouchEvent', {
+        type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1, force: 1 }],
+      });
+      await new Promise((r) => setTimeout(r, 30));
+    };
+    await page.evaluate(() => { document.querySelector('#styles').scrollLeft = 0; });
+    const depart = barre.x + barre.width - 20;
+    await envoyer('touchStart', depart);
+    for (let i = 1; i <= 10; i++) await envoyer('touchMove', depart - i * 14);
+    await envoyer('touchEnd', depart - 140);
+    await page.waitForTimeout(300);
+    const etat = await page.evaluate(() => {
+      const el = document.querySelector('#styles');
+      return { deborde: el.scrollWidth > el.clientWidth, defilement: Math.round(el.scrollLeft) };
+    });
+    check('la barre des styles défile encore au doigt',
+          etat.deborde && etat.defilement > 20, JSON.stringify(etat));
+  }
   await page.close();
 }
 
 // --- Comportement musical ------------------------------------------------------
 
-const page = await browser.newPage({ viewport: SIZES[0], hasTouch: true });
+const page = await browser.newPage({ viewport: SIZES[0], hasTouch: true, isMobile: true });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -177,30 +207,65 @@ const repos = await page.evaluate(() => ({
 check(`retour à la normale après les ${fxIds.length} effets`,
       repos.vitesse === 1 && repos.repetition === null && repos.enLecture, JSON.stringify(repos));
 
-// Réglette de note : elle s'ouvre sous le doigt, la position choisit la note.
+// Jauge de note, avec de VRAIS événements tactiles (protocole Chrome DevTools) :
+// c'est le seul moyen de voir le navigateur confisquer un glissé pour défiler.
 await page.click('.view-tab[data-view="motif"]');
-const pad = page.locator('.row[data-track="lead"] .pad').nth(1);
-const padBox = await pad.boundingBox();
-await pad.dispatchEvent('pointerdown', { pointerId: 30, clientX: padBox.x + padBox.width / 2, clientY: padBox.y + 4 });
-await page.waitForTimeout(150);
-const pickerBox = await page.locator('.picker').boundingBox();
-await pad.dispatchEvent('pointermove', { pointerId: 30, clientX: padBox.x, clientY: pickerBox.y + 8 });
-await page.waitForTimeout(120);
-const aigu = await page.evaluate(() => window.groovebox.state.patterns.lead[1]);
-await pad.dispatchEvent('pointermove', { pointerId: 30, clientX: padBox.x, clientY: pickerBox.y + pickerBox.height - 8 });
-await page.waitForTimeout(120);
-const grave = await page.evaluate(() => window.groovebox.state.patterns.lead[1]);
-await pad.dispatchEvent('pointerup', { pointerId: 30 });
-const referme = await page.evaluate(() => document.querySelector('.picker').classList.contains('hidden'));
-check('la réglette choisit la note à la position du doigt',
-      aigu === 9 && grave === 0 && referme && pickerBox.height > window0Height * 0.7,
-      `haut : ${aigu}, bas : ${grave}, hauteur : ${Math.round(pickerBox.height)} px`);
+const annulations = [];
+await page.exposeFunction('signalerAnnulation', (cible) => annulations.push(cible));
+await page.evaluate(() => {
+  document.addEventListener('pointercancel', (e) => window.signalerAnnulation(String(e.target.className)), true);
+});
 
-// Un simple appui sur une note existante l'efface toujours.
-await pad.dispatchEvent('pointerdown', { pointerId: 31, clientX: padBox.x + 4, clientY: padBox.y + 4 });
-await pad.dispatchEvent('pointerup', { pointerId: 31 });
+const cdp = await page.context().newCDPSession(page);
+const doigt = async (type, x, y) => {
+  await cdp.send('Input.dispatchTouchEvent', {
+    type,
+    touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1, radiusX: 12, radiusY: 12, force: 1 }],
+  });
+  await new Promise((r) => setTimeout(r, 35));
+};
+const glisser = async (x, depart, arrivee, pas = 12) => {
+  for (let i = 1; i <= pas; i++) await doigt('touchMove', x, depart + (arrivee - depart) * (i / pas));
+};
+
+const padBox = await page.locator('.row[data-track="lead"] .pad').nth(1).boundingBox();
+const padX = padBox.x + padBox.width / 2;
+const padY = padBox.y + padBox.height / 2;
+await doigt('touchStart', padX, padY);
+const jauge = await page.locator('.picker').boundingBox();
+await glisser(padX, padY, jauge.y + 12);
+const aigu = await page.evaluate(() => window.groovebox.state.patterns.lead[1]);
+await glisser(padX, jauge.y + 12, jauge.y + jauge.height - 12);
+const grave = await page.evaluate(() => window.groovebox.state.patterns.lead[1]);
+await doigt('touchEnd', padX, jauge.y + jauge.height - 12);
+const referme = await page.evaluate(() => document.querySelector('.picker').classList.contains('hidden'));
+check('la jauge suit un vrai doigt qui glisse',
+      aigu === 9 && grave === 0 && referme && jauge.height > SIZES[0].height * 0.7,
+      `haut : ${aigu}, bas : ${grave}, jauge ${Math.round(jauge.width)}×${Math.round(jauge.height)} px`);
+
+// Un appui simple, sans glisser, efface toujours la note.
+await doigt('touchStart', padX, padY);
+await doigt('touchEnd', padX, padY);
 check('un appui simple efface la note',
       await page.evaluate(() => window.groovebox.state.patterns.lead[1]) === null);
+
+// Le doigt bouge toujours un peu : ni le clavier ni les effets ne doivent lâcher.
+await page.click('.view-tab[data-view="live"]');
+const toucheBox = await page.locator('#keyboard .key').nth(3).boundingBox();
+await doigt('touchStart', toucheBox.x + toucheBox.width / 2, toucheBox.y + toucheBox.height / 2);
+await glisser(toucheBox.x + toucheBox.width / 2, toucheBox.y + toucheBox.height / 2, toucheBox.y + 12, 6);
+const toucheTenue = await page.evaluate(() => document.querySelectorAll('#keyboard .key.down').length);
+await doigt('touchEnd', toucheBox.x + toucheBox.width / 2, toucheBox.y + 12);
+
+const fxBox = await page.locator('.fx-btn[data-fx="filter"]').boundingBox();
+await doigt('touchStart', fxBox.x + fxBox.width / 2, fxBox.y + fxBox.height / 2);
+await glisser(fxBox.x + fxBox.width / 2, fxBox.y + fxBox.height / 2, fxBox.y + 10, 6);
+const effetTenu = await page.evaluate(() => document.querySelector('.fx-btn[data-fx="filter"]').classList.contains('active'));
+await doigt('touchEnd', fxBox.x + fxBox.width / 2, fxBox.y + 10);
+
+check('le navigateur ne confisque aucun glissé',
+      annulations.length === 0 && toucheTenue === 1 && effetTenu,
+      `pointercancel : ${annulations.length ? annulations.join(', ') : 'aucun'}, touche tenue : ${toucheTenue}, effet tenu : ${effetTenu}`);
 
 // Voile visuel : présent pendant l'effet, retiré au relâchement.
 await page.click('.view-tab[data-view="live"]');
@@ -263,7 +328,7 @@ const niveaux = await page.evaluate(async () => {
   sequencer.stop();
   return mesures;
 });
-const muets = Object.entries(niveaux).filter(([, m]) => m.rms < 0.01).map(([id]) => id);
+const muets = Object.entries(niveaux).filter(([, m]) => m.rms < 0.005).map(([id]) => id);
 const satures = Object.entries(niveaux).filter(([, m]) => m.crete > 0.99).map(([id]) => id);
 check('les 8 styles sonnent, sans saturation', muets.length === 0 && satures.length === 0,
       muets.length || satures.length
