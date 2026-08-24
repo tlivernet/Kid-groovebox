@@ -120,6 +120,7 @@ export class UI {
     this.pads = {};
     this.knobs = {};
     this.currentStep = -1;
+    this.lastPlayheadStep = -1;
     this.build();
   }
 
@@ -239,7 +240,9 @@ export class UI {
       toggle.className = 'track-btn';
       toggle.dataset.track = track.id;
       toggle.setAttribute('aria-label', track.label);
-      toggle.innerHTML = `${icon(track.icon)}<span class="track-vol"></span>`;
+      // Le nom de l'instrument est écrit : on apprend « charleston » en jouant.
+      toggle.innerHTML = `${icon(track.icon)}<span class="track-name">${track.label}</span>`
+        + '<span class="track-vol"></span>';
       this.attachTrackEvents(toggle, track);
       row.appendChild(toggle);
 
@@ -695,6 +698,7 @@ export class UI {
     this.currentStep = step;
     if (step < 0) {
       this.playhead.classList.remove('on');
+      this.lastPlayheadStep = -1;
       return;
     }
     TRACKS.forEach((t) => this.pads[t.id][step]?.classList.add('cursor'));
@@ -709,8 +713,23 @@ export class UI {
     const padBox = pad.getBoundingClientRect();
     const gridBox = grid.getBoundingClientRect();
     if (!padBox.width) return;   // grille masquée (mode live)
+
+    // Retour au début de la mesure (ou saut arrière de l'effet « répète ») : le
+    // curseur doit sauter, pas glisser. Sinon on le voit repartir en arrière en
+    // travers de la grille, ce qui ne correspond à rien de ce qu'on entend.
+    const saut = step <= this.lastPlayheadStep;
+    if (saut) {
+      this.playhead.classList.add('jump');
+      void this.playhead.offsetWidth;
+    }
+    this.lastPlayheadStep = step;
+
     this.playhead.style.left = `${padBox.left - gridBox.left - 3}px`;
     this.playhead.style.width = `${padBox.width + 6}px`;
+    if (saut) {
+      void this.playhead.offsetWidth;              // la position saute maintenant
+      requestAnimationFrame(() => this.playhead.classList.remove('jump'));
+    }
     this.playhead.classList.add('on');
     // Les temps forts s'accentuent : on sent la mesure d'un coup d'œil.
     this.playhead.classList.toggle('beat', step % 4 === 0);

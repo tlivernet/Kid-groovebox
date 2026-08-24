@@ -21,8 +21,8 @@ musique et s'accentue sur les temps forts : on suit toujours où on en est.
 | **Styles** (en haut à gauche) | 1 appui | Techno, rock, hip-hop, reggae, disco, doux, latino, jeu vidéo — charge **un petit morceau complet** : tempo, sons, swing et les quatre phrases (voir plus bas) |
 | **Tonalité** (en haut à droite) | 1 appui | Note de base : do, ré, mi… |
 | **Soleil / lune** | 1 appui | Joyeux (majeur) ou mystérieux (mineur) |
-| **Animal de la ligne** | 1 appui | Coupe ou rallume la couche. Chaque piste a son animal — éléphant, grenouille, oiseau, baleine, pieuvre, chat — et **il saute à chaque note qu'il joue** : on voit qui fait quoi sans savoir lire |
-| **Animal de la ligne** | **appui long** | Ouvre la jauge de **volume de cette piste** (de « muet » à « fort »). Un trait sous l'animal rappelle les pistes réglées à la main |
+| **Instrument de la ligne** | 1 appui | Coupe ou rallume la couche. Chaque piste porte **son instrument dessiné et son nom** — grosse caisse, caisse claire, charleston, basse, clavier, mélodie — et l'icône bouge légèrement à chaque note qu'elle joue |
+| **Instrument de la ligne** | **appui long** | Ouvre la jauge de **volume de cette piste** (de « muet » à « fort »). Un trait sous l'icône rappelle les pistes réglées à la main |
 | **Pads** | 1 appui | Ajoute ou enlève un son sur ce temps |
 | **Pads mélodiques** | poser le doigt, puis glisser haut/bas | Une **grande jauge** s'ouvre à côté du doigt, sur toute la hauteur de l'écran : le remplissage monte avec la note, un gros curseur affiche son nom (do, ré, mi…), et la position du doigt désigne directement la note. On relâche, elle disparaît |
 | **Dé** (à droite de chaque ligne) | 1 appui | Invente un motif pour cette ligne |
@@ -68,8 +68,8 @@ une chanson — et les deux dernières portent **un air que l'enfant connaît** 
 
 | Phrase | Rôle |
 |---|---|
-| **A** | Le couplet : le groove de base, épuré |
-| **B** | La variation : même harmonie, ça bouge davantage, la mélodie apparaît |
+| **A** | Le groove du genre, à nu : la rythmique et la ligne de basse qui le signent |
+| **B** | La variation : la basse bouge, les accords entrent |
 | **C** | Le thème connu, arrangé dans le style |
 | **D** | La suite du thème, en version complète |
 
@@ -87,6 +87,12 @@ une chanson — et les deux dernières portent **un air que l'enfant connaît** 
 Ce sont toutes des mélodies du **domaine public** : elles se reprennent librement, y compris si
 l'appli est publiée. Reprendre une chanson récente demanderait une autorisation de son éditeur — et
 pour un enfant de 6 ans, ces airs-là sont de toute façon les plus reconnaissables.
+
+Les phrases A et B, elles, **évoquent franchement les codes du genre** : quatre temps au sol et basse
+en contretemps pour la techno, « one drop » et accords à contretemps pour le reggae, clave 3-2 et
+basse anticipée pour le latino, basse à l'octave et cordes piquées pour le disco, arpège rapide pour
+le jeu vidéo. Rythmiques, lignes de basse et enchaînements d'accords ne sont protégés par personne :
+c'est la grammaire du style, pas une mélodie.
 
 Il suffit d'appuyer sur **Chaîne** et de laisser tourner : A → B → C → D, un vrai morceau. Basse et
 accords partagent les mêmes degrés à chaque instant, pour que l'harmonie tienne debout, et les
@@ -118,8 +124,9 @@ Le point sous une lettre indique qu'elle contient quelque chose.
   tonalité. Par défaut c'est la gamme pentatonique (5 notes), la plus indulgente ; les styles dont
   le thème a besoin du *fa* ou du *si* (Frère Jacques, Alouette…) passent aux sept notes de la
   gamme, qui restent toutes justes.
-- **Rien à lire** : chaque fonction est portée par une icône dessinée et une couleur ; les pistes
-  sont des animaux. Les mots restent en secours, en petit, sous les boutons.
+- **On apprend en jouant** : chaque piste porte l'instrument dessiné **et son nom** — on retient
+  « charleston » et « caisse claire » sans leçon. Les autres fonctions sont portées par une icône et
+  une couleur, le mot en dessous.
 - **Ce qui joue se voit** : la colonne de lecture balaie la grille, et l'animal d'une piste saute à
   chaque note.
 - **Aucun état caché** : pas de menu, pas de mode invisible ; ce qui est allumé est ce qu'on entend.

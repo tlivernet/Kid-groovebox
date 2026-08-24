@@ -5,12 +5,12 @@
 export const STEPS = 16;
 
 export const TRACKS = [
-  { id: 'kick',  icon: 'elephant', label: 'Grosse caisse', type: 'drum',  color: '#ff5470' },
-  { id: 'snare', icon: 'frog',     label: 'Caisse claire', type: 'drum',  color: '#ff9f43' },
-  { id: 'hat',   icon: 'bird',     label: 'Charleston',    type: 'drum',  color: '#ffd23f' },
-  { id: 'bass',  icon: 'whale',    label: 'Basse',         type: 'pitch', color: '#3ec9ff' },
-  { id: 'chord', icon: 'octopus',  label: 'Accords',       type: 'pitch', color: '#b57bff' },
-  { id: 'lead',  icon: 'cat',      label: 'Mélodie',       type: 'pitch', color: '#3ce88b' },
+  { id: 'kick',  icon: 'kick',  label: 'Grosse caisse', type: 'drum',  color: '#ff5470' },
+  { id: 'snare', icon: 'snare', label: 'Caisse claire', type: 'drum',  color: '#ff9f43' },
+  { id: 'hat',   icon: 'hat',   label: 'Charleston',    type: 'drum',  color: '#ffd23f' },
+  { id: 'bass',  icon: 'bass',  label: 'Basse',         type: 'pitch', color: '#3ec9ff' },
+  { id: 'chord', icon: 'chord', label: 'Clavier',       type: 'pitch', color: '#b57bff' },
+  { id: 'lead',  icon: 'lead',  label: 'Mélodie',       type: 'pitch', color: '#3ce88b' },
 ];
 
 /** Nombre de phrases (motifs A, B, C, D) que l'on peut enchaîner. */
@@ -121,21 +121,21 @@ export const STYLES = [
     },
     fx: { filter: 0.85, delay: 0.25, space: 0.2 },
     phrases: [
-      phrase({ // A — la machine se met en route
+      phrase({ // A — quatre temps au sol, basse en contretemps : le club se remplit
         kick:  'x---x---x---x---',
         snare: '----x-------x---',
         hat:   '--x---x---x---x-',
-        bass:  '0-0-3---0-0-2---',
-        chord: '0---------------',
+        bass:  '--0---0---0---0-',
+        chord: '----------------',
         lead:  '----------------',
       }),
-      phrase({ // B — la basse se met à bouger
+      phrase({ // B — la basse roule en doubles-croches, façon acide
         kick:  'x---x---x---x---',
-        snare: '----x-------x-x-',
+        snare: '----x-------x---',
         hat:   'x-x-x-x-x-x-xxx-',
-        bass:  '0---0-3-2---2-0-',
-        chord: '0-------3-------',
-        lead:  '--5---4---2-----',
+        bass:  '0-0-7-0-0-4-0-2-',
+        chord: '0-------4-------',
+        lead:  '------------4-2-',
       }),
       phrase({ // C — le thème : « Dans l'antre du roi de la montagne » (Grieg, 1875)
         kick:  'x---x---x---x---',
@@ -167,21 +167,21 @@ export const STYLES = [
     },
     fx: { filter: 1, delay: 0.1, space: 0.15 },
     phrases: [
-      phrase({ // A — le riff
-        kick:  'x-----x-x-------',
+      phrase({ // A — le riff : grosse caisse sur le 1 et le contretemps du 2
+        kick:  'x--x--x-x--x----',
         snare: '----x-------x---',
         hat:   'x-x-x-x-x-x-x-x-',
-        bass:  '0---0---0---3---',
-        chord: '0---------------',
+        bass:  '0---0-0-3---3-2-',
+        chord: '0-------0-------',
         lead:  '----------------',
       }),
-      phrase({ // B — le riff se complète
-        kick:  'x-----x-x---x---',
+      phrase({ // B — le riff se complète, les accords suivent la basse
+        kick:  'x--x--x-x--x--x-',
         snare: '----x-------x---',
         hat:   'x-x-x-x-x-x-x-x-',
-        bass:  '0-0-3---2-2-3---',
-        chord: '0-------3-------',
-        lead:  '--2-3---2-------',
+        bass:  '0-0-3-3-4-4-3-2-',
+        chord: '0---0---4---3---',
+        lead:  '--2-----4-------',
       }),
       phrase({ // C — le thème : « Ode à la joie » (Beethoven, 1824)
         kick:  'x-----x-x-------',
@@ -213,21 +213,21 @@ export const STYLES = [
     },
     fx: { filter: 0.8, delay: 0.2, space: 0.25 },
     phrases: [
-      phrase({ // A — la boucle qui balance
+      phrase({ // A — boum-tchak : grosse caisse traînante, basse très en dessous
         kick:  'x-----x--x------',
         snare: '----x-------x---',
         hat:   'x-x-x-x-x-x-x-x-',
-        bass:  '0------2--0-----',
-        chord: '0---------------',
+        bass:  '0----------3----',
+        chord: '----0-----------',
         lead:  '----------------',
       }),
-      phrase({ // B — le clavier répond
+      phrase({ // B — les doubles-croches balancent, un accord répond
         kick:  'x-----x--x----x-',
         snare: '----x-------x---',
-        hat:   'x-x-x-x-x-x-x-x-',
-        bass:  '0------2--0---4-',
-        chord: '0-------2-------',
-        lead:  '----4-5---4-----',
+        hat:   'x-xxx-x-x-xxx-x-',
+        bass:  '0----------3--1-',
+        chord: '----0-------2---',
+        lead:  '------------4---',
       }),
       phrase({ // C — le thème : « Au clair de la lune » (traditionnel)
         kick:  'x-----x--x------',
@@ -259,21 +259,21 @@ export const STYLES = [
     },
     fx: { filter: 0.75, delay: 0.45, space: 0.35 },
     phrases: [
-      phrase({ // A — le one-drop et le skank
+      phrase({ // A — le « one drop » : rien sur le 1, tout sur le 3, accords à contretemps
         kick:  '--------x-------',
         snare: '--------x-------',
         hat:   '--x---x---x---x-',
-        bass:  '0--2----0--4----',
+        bass:  '0---0-4---2-----',
         chord: '--0---0---0---0-',
         lead:  '----------------',
       }),
-      phrase({ // B — la basse se promène
+      phrase({ // B — la basse se promène, le contretemps change de couleur
         kick:  '--------x-------',
-        snare: '--------x-------',
+        snare: '--------x---x---',
         hat:   '--x---x---x---x-',
-        bass:  '0--2--3-0--4--2-',
-        chord: '--0---0---3---3-',
-        lead:  '------------5-4-',
+        bass:  '0---0-4---2-4---',
+        chord: '--0---0---4---4-',
+        lead:  '------------2-1-',
       }),
       phrase({ // C — le thème : « Frère Jacques » (traditionnel)
         kick:  '--------x-------',
@@ -305,21 +305,22 @@ export const STYLES = [
     },
     fx: { filter: 0.9, delay: 0.2, space: 0.25 },
     phrases: [
-      phrase({ // A — la basse qui saute d'octave
+      phrase({ // A — quatre temps au sol, charleston ouvert sur les contretemps,
+        //     et la basse qui saute à l'octave : la signature du genre
         kick:  'x---x---x---x---',
         snare: '----x-------x---',
         hat:   '--x---x---x---x-',
-        bass:  '0-5-0-5-0-5-0-5-',
+        bass:  '0-7-0-7-0-7-0-7-',
         chord: '----------------',
         lead:  '----------------',
       }),
-      phrase({ // B — les cordes entrent
+      phrase({ // B — les cordes piquent à contretemps, la basse change de note
         kick:  'x---x---x---x---',
         snare: '----x-------x---',
-        hat:   '--x---x---x---x-',
-        bass:  '0-5-0-5-3-8-3-8-',
-        chord: '----2-------4---',
-        lead:  '--------7-5-----',
+        hat:   '--x-x-x---x-x-x-',
+        bass:  '0-7-0-7-2-9-2-9-',
+        chord: '--0---0---2---2-',
+        lead:  '------7-5-------',
       }),
       phrase({ // C — le thème : le galop d'Offenbach, alias le french cancan (1858)
         kick:  'x---x---x---x---',
@@ -351,7 +352,7 @@ export const STYLES = [
     },
     fx: { filter: 0.6, delay: 0.3, space: 0.5 },
     phrases: [
-      phrase({ // A — on flotte
+      phrase({ // A — batterie feutrée, balais sur la caisse claire : on flotte
         kick:  'x-------x-------',
         snare: '----x-------x---',
         hat:   '--x---x---x---x-',
@@ -359,12 +360,12 @@ export const STYLES = [
         chord: '0---------------',
         lead:  '----------------',
       }),
-      phrase({ // B — une petite phrase se pose
-        kick:  'x-------x-------',
+      phrase({ // B — un accord de plus, une petite phrase se pose
+        kick:  'x-------x---x---',
         snare: '----x-------x---',
-        hat:   '--x---x---x---x-',
-        bass:  '0-------4-------',
-        chord: '0-------4-------',
+        hat:   '--x-x-x---x-x-x-',
+        bass:  '0-------3-------',
+        chord: '0-------3-------',
         lead:  '----5---4-------',
       }),
       phrase({ // C — le thème : « Ah ! vous dirai-je, maman » (traditionnel)
@@ -397,21 +398,21 @@ export const STYLES = [
     },
     fx: { filter: 0.95, delay: 0.15, space: 0.2 },
     phrases: [
-      phrase({ // A — la clave
+      phrase({ // A — la clave 3-2 sur le bord de caisse, basse en anticipation
         kick:  'x-----x---x-x---',
-        snare: '--x---x-----x---',
+        snare: 'x--x--x---x-x---',
         hat:   'x-xxx-xxx-xxx-xx',
-        bass:  '0--0--3---2-----',
-        chord: '--0-------0-----',
+        bass:  '--0---4-----0---',
+        chord: '--0---0---4---4-',
         lead:  '----------------',
       }),
-      phrase({ // B — le piano entre
-        kick:  'x-----x---x-x---',
-        snare: '--x---x-----x-x-',
-        hat:   'x-xxx-xxx-xxx-xx',
-        bass:  '0--0--3---2--4--',
+      phrase({ // B — le piano entre en montuno, la basse bouge
+        kick:  'x-----x---x-x-x-',
+        snare: 'x--x--x---x-x---',
+        hat:   'x-xxx-xxx-xxxxxx',
+        bass:  '--0---4---2---0-',
         chord: '--0-2---0-2-----',
-        lead:  '--------5-4-----',
+        lead:  '--------4-2-----',
       }),
       phrase({ // C — le thème : « La Cucaracha » (traditionnel)
         kick:  'x-----x---x-x---',
@@ -443,21 +444,21 @@ export const STYLES = [
     },
     fx: { filter: 1, delay: 0.18, space: 0.1 },
     phrases: [
-      phrase({ // A — l'écran-titre
+      phrase({ // A — basse en arpège rapide, comme les consoles 8 bits
         kick:  'x---x---x---x---',
         snare: '----x-------x---',
         hat:   'x-x-x-x-x-x-x-x-',
-        bass:  '0-0-4-4-2-2-3-3-',
-        chord: '0-------2-------',
+        bass:  '0-2-4-2-0-2-4-2-',
+        chord: '0-------4-------',
         lead:  '----------------',
       }),
-      phrase({ // B — le thème démarre
+      phrase({ // B — l'arpège change de degré, une bribe de mélodie apparaît
         kick:  'x---x---x---x---',
         snare: '----x-------x---',
         hat:   'x-x-x-x-x-x-x-x-',
-        bass:  '0-0-4-4-2-2-3-3-',
-        chord: '0-------2-------',
-        lead:  '5-7-9-7-5-4-2---',
+        bass:  '0-2-4-2-3-5-4-2-',
+        chord: '0---2---4---2---',
+        lead:  '--------7-5-4-2-',
       }),
       phrase({ // C — le thème : « Alouette » (traditionnel)
         kick:  'x---x---x---x---',

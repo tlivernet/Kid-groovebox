@@ -2,22 +2,12 @@
 // Aucune police d'icônes, aucun émoji : le rendu est identique sur toutes les tablettes.
 
 const P = {
-  // --- Les animaux de chaque piste -------------------------------------------
-  // Un enfant de 6 ans reconnaît un éléphant bien avant une grosse caisse :
-  // chaque piste a son animal, qui saute quand sa note tombe.
-  elephant: '<circle cx="12" cy="11" r="5.8"/><ellipse cx="4.9" cy="9.8" rx="2.5" ry="3.4"/><ellipse cx="19.1" cy="9.8" rx="2.5" ry="3.4"/><path d="M12 16.6v2.4a2 2 0 004 0v-1.1"/><circle cx="9.7" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="14.3" cy="10" r="1" fill="currentColor" stroke="none"/>',
-  frog: '<path d="M4.4 13.8a7.6 7.6 0 0115.2 0 4.3 4.3 0 01-4.3 4.3H8.7a4.3 4.3 0 01-4.3-4.3z"/><circle cx="8.4" cy="7.9" r="2.5"/><circle cx="15.6" cy="7.9" r="2.5"/><circle cx="8.4" cy="8.1" r="1" fill="currentColor" stroke="none"/><circle cx="15.6" cy="8.1" r="1" fill="currentColor" stroke="none"/><path d="M9.4 14.6h5.2"/>',
-  bird: '<circle cx="11" cy="14" r="5.6"/><circle cx="15.6" cy="8.4" r="3.4"/><path d="m18.7 7.6 3.2 1-3.1 1.3"/><circle cx="16.4" cy="7.9" r="1" fill="currentColor" stroke="none"/><path d="M8.2 13.2c2.1.5 3.6 2 4.3 4.2"/><path d="m5.6 18.4-3 1.4 2.2-2.8"/>',
-  whale: '<path d="M2.8 13.2c0-2.9 3.5-5.2 7.9-5.2s7.9 2.3 7.9 5.2-3.5 5.2-7.9 5.2c-2.7 0-5.1-.9-6.5-2.2"/><path d="m18.6 11.7 2.8-2.4v7.8l-2.8-2.4"/><circle cx="7.4" cy="12.4" r="1" fill="currentColor" stroke="none"/><path d="M10.6 6.6c-.2-1.6.8-2.7 2.2-2.4"/>',
-  octopus: '<path d="M5.9 12.4a6.1 6.1 0 0112.2 0v3.2H5.9z"/><circle cx="9.6" cy="11.4" r="1" fill="currentColor" stroke="none"/><circle cx="14.4" cy="11.4" r="1" fill="currentColor" stroke="none"/><path d="M6.4 15.6c-.6 2 .2 3.7 1.4 4.5M10 15.6c-.7 2.2-.3 3.9.8 4.9M14 15.6c.7 2.2.3 3.9-.8 4.9M17.6 15.6c.6 2-.2 3.7-1.4 4.5"/>',
-  cat: '<path d="M5.6 9.9 4.9 4.6l4 2.6a7.7 7.7 0 016.2 0l4-2.6-.7 5.3a6.6 6.6 0 11-12.8 0z"/><circle cx="9.7" cy="13" r="1" fill="currentColor" stroke="none"/><circle cx="14.3" cy="13" r="1" fill="currentColor" stroke="none"/><path d="M12 15.3v.9M10.5 16.9h3M4.4 14.2h2.3M17.3 14.2h2.3"/>',
-
   // --- Instruments ---------------------------------------------------------
-  kick: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/>',
+  kick: '<circle cx="11.4" cy="12" r="7.6"/><circle cx="11.4" cy="12" r="2.6" fill="currentColor" stroke="none"/><path d="M19.4 19.6v-4.2l-4.4-2.6"/><path d="M4.4 19.6h14.6"/>',
   snare: '<rect x="3.2" y="7.4" width="17.6" height="9.2" rx="3"/><path d="M3.2 12h17.6"/><path d="M7.4 16.6 5.8 20.4M16.6 16.6l1.6 3.8"/>',
-  hat: '<path d="M3.4 10.6c3.2-3 14-3 17.2 0"/><path d="M3.4 13.8c3.2 3 14 3 17.2 0"/><path d="M12 14.6V20.4"/>',
-  bass: '<path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path d="M15.5 9.8a4 4 0 010 4.4M18.5 7.5a7.5 7.5 0 010 9"/>',
-  chord: '<rect x="3" y="5" width="18" height="3.6" rx="1.8" fill="currentColor" stroke="none"/><rect x="3" y="10.2" width="12.5" height="3.6" rx="1.8" fill="currentColor" stroke="none"/><rect x="3" y="15.4" width="16" height="3.6" rx="1.8" fill="currentColor" stroke="none"/>',
+  hat: '<path d="M3.6 10q8.4-4.4 16.8 0"/><path d="M4.8 13.4q7.2 3.6 14.4 0"/><path d="M12 7.8v12.6"/><path d="M9.4 20.4h5.2"/>',
+  bass: '<path d="M7.4 11.8c2 0 2.5 1.1 3.5 1.1s1.5-1.1 3.5-1.1c2 0 3.4 1.8 3.4 4.2s-1.6 4.4-3.5 4.4c-1.5 0-2-1-3.4-1s-1.9 1-3.4 1c-1.9 0-3.5-2-3.5-4.4s1.4-4.2 3.4-4.2z"/><circle cx="10.9" cy="16" r="1.4"/><path d="m13.6 11.6 4.6-5.4"/><path d="m17.1 4.9 2.9 2.4-1.5 1.8-2.9-2.4z"/>',
+  chord: '<rect x="2.6" y="6.4" width="18.8" height="11.2" rx="2"/><path d="M8.9 6.4v11.2M15.1 6.4v11.2"/><path d="M6.6 6.4h2.6v6.2H6.6zM12.8 6.4h2.6v6.2h-2.6zM19 6.4h-2.6v6.2H19z" fill="currentColor" stroke="none"/>',
   lead: '<circle cx="8.6" cy="16.6" r="3.3" fill="currentColor" stroke="none"/><path d="M11.9 16.6V4.2c4 .8 6.6 2.5 6.6 5.3"/>',
 
   // --- Styles --------------------------------------------------------------

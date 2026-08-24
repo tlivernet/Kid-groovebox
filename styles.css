@@ -288,6 +288,8 @@ main { flex: 1; min-height: 0; display: flex; }
   transition: left .05s linear, width .05s linear, box-shadow .12s, background .12s;
 }
 #playhead.on { opacity: 1; }
+/* Au bouclage, le curseur saute : pas de glissement à rebours. */
+#playhead.jump { transition: none; }
 #playhead.beat {
   background: linear-gradient(180deg, rgba(255, 255, 255, .34), rgba(255, 255, 255, .12));
   box-shadow: 0 0 0 3px #fff, 0 0 34px rgba(255, 255, 255, .45);
@@ -302,9 +304,12 @@ main { flex: 1; min-height: 0; display: flex; }
 }
 
 .track-btn {
-  --icon: clamp(30px, 4vw, 46px);
-  flex: 0 0 clamp(54px, 7.4vw, 86px);
+  --icon: clamp(26px, 3.4vw, 40px);
+  flex: 0 0 clamp(54px, 7.4vw, 92px);
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 3px;
   align-items: center;
   justify-content: center;
   border-radius: var(--r-md);
@@ -316,6 +321,16 @@ main { flex: 1; min-height: 0; display: flex; }
 .track-btn { position: relative; overflow: hidden; }
 .track-btn:active { transform: scale(.94); }
 /* Trait de volume, visible seulement si la piste a été réglée à la main. */
+.track-name {
+  font-size: clamp(7px, .95vw, 10px);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: .2px;
+  text-align: center;
+  text-transform: uppercase;
+  opacity: .8;
+}
+
 .track-vol {
   position: absolute;
   left: 0;
@@ -328,11 +343,10 @@ main { flex: 1; min-height: 0; display: flex; }
 .track-btn.tuned .track-vol { opacity: .95; }
 .track-btn.off { opacity: .32; filter: grayscale(1); }
 /* À chaque note de la piste, l'animal fait un bond. */
-.track-btn.hit { animation: trackHit .3s cubic-bezier(.2, .8, .3, 1); }
+.track-btn.hit { animation: trackHit .22s ease-out; }
 @keyframes trackHit {
   0%   { transform: scale(1) translateY(0); filter: brightness(1); }
-  22%  { transform: scale(1.18) translateY(-5px); filter: brightness(1.9); }
-  55%  { transform: scale(.96) translateY(2px); filter: brightness(1.25); }
+  30%  { transform: scale(1.05) translateY(-2px); filter: brightness(1.3); }
   100% { transform: scale(1) translateY(0); filter: brightness(1); }
 }
 .track-btn.off.hit { animation: none; }
@@ -645,7 +659,8 @@ footer {
   :root { --r-lg: 14px; --r-md: 10px; --gap: 5px; }
   #live-bottom { flex-basis: clamp(74px, 34%, 150px); }
   .fx-btn { --icon: 22px; }
-  .track-btn { --icon: clamp(24px, 5.5vh, 34px); flex-basis: clamp(46px, 6vw, 64px); }
+  .track-btn { --icon: clamp(22px, 5vh, 30px); flex-basis: clamp(46px, 6vw, 64px); }
+  .track-name { display: none; }
   /* Peu de hauteur : les trois instruments passent côte à côte, en icônes seules. */
   #live-side { flex-basis: clamp(104px, 18vw, 170px); }
   #live-instruments { flex-direction: row; }

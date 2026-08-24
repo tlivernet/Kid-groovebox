@@ -360,6 +360,30 @@ for (let i = 0; i < 12; i++) {
   if (etat.visible) { positions.add(etat.gauche); largeurCurseur = etat.largeur; }
   await page.waitForTimeout(90);
 }
+// Au bouclage, le curseur doit sauter. S'il glissait, sa position réelle
+// s'écarterait fortement du pas qu'il est censé montrer.
+const mesureCurseur = await page.evaluate(async () => {
+  const ui = window.groovebox.ui;
+  const curseur = document.querySelector('#playhead');
+  const grille = curseur.parentElement;
+  const pads = document.querySelectorAll('.row .pads')[0].children;
+  let max = 0;
+  const t0 = performance.now();
+  while (performance.now() - t0 < 3000) {
+    await new Promise((r) => requestAnimationFrame(r));
+    const pas = ui.currentStep;
+    if (pas < 0) continue;
+    const attendu = pads[pas].getBoundingClientRect().left - grille.getBoundingClientRect().left - 3;
+    max = Math.max(max, Math.abs(parseFloat(getComputedStyle(curseur).left) - attendu));
+  }
+  return { max: Math.round(max), pad: Math.round(pads[0].getBoundingClientRect().width) };
+});
+// Entre deux pas voisins, la transition de 50 ms permet un écart d'une largeur
+// de pad. Un glissement à rebours au bouclage en ferait quinze.
+check('le curseur saute au bouclage au lieu de glisser en arrière',
+      mesureCurseur.max < mesureCurseur.pad * 1.5,
+      `écart maximum ${mesureCurseur.max} px pour un pad de ${mesureCurseur.pad} px`);
+
 check('le curseur de lecture balaie la grille',
       positions.size >= 3 && largeurCurseur > 20,
       `${positions.size} positions vues, largeur ${largeurCurseur} px`);
