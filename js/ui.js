@@ -240,9 +240,7 @@ export class UI {
       toggle.className = 'track-btn';
       toggle.dataset.track = track.id;
       toggle.setAttribute('aria-label', track.label);
-      // Le nom de l'instrument est écrit : on apprend « charleston » en jouant.
-      toggle.innerHTML = `${icon(track.icon)}<span class="track-name">${track.label}</span>`
-        + '<span class="track-vol"></span>';
+      toggle.innerHTML = `${icon(track.icon)}<span class="track-vol"></span>`;
       this.attachTrackEvents(toggle, track);
       row.appendChild(toggle);
 
@@ -288,6 +286,8 @@ export class UI {
           rect: btn.getBoundingClientRect(),
           color: track.color,
           volume: this.state.volumes[track.id] ?? 1,
+          // Le nom de l'instrument s'affiche ici, là où il ne gêne rien.
+          titre: track.label,
         });
       }, LONG_PRESS_MS);
     });

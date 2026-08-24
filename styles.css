@@ -304,12 +304,9 @@ main { flex: 1; min-height: 0; display: flex; }
 }
 
 .track-btn {
-  --icon: clamp(26px, 3.4vw, 40px);
-  flex: 0 0 clamp(54px, 7.4vw, 92px);
+  --icon: clamp(30px, 4vw, 46px);
+  flex: 0 0 clamp(54px, 7.4vw, 86px);
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 4px 3px;
   align-items: center;
   justify-content: center;
   border-radius: var(--r-md);
@@ -321,16 +318,6 @@ main { flex: 1; min-height: 0; display: flex; }
 .track-btn { position: relative; overflow: hidden; }
 .track-btn:active { transform: scale(.94); }
 /* Trait de volume, visible seulement si la piste a été réglée à la main. */
-.track-name {
-  font-size: clamp(7px, .95vw, 10px);
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: .2px;
-  text-align: center;
-  text-transform: uppercase;
-  opacity: .8;
-}
-
 .track-vol {
   position: absolute;
   left: 0;
@@ -659,8 +646,7 @@ footer {
   :root { --r-lg: 14px; --r-md: 10px; --gap: 5px; }
   #live-bottom { flex-basis: clamp(74px, 34%, 150px); }
   .fx-btn { --icon: 22px; }
-  .track-btn { --icon: clamp(22px, 5vh, 30px); flex-basis: clamp(46px, 6vw, 64px); }
-  .track-name { display: none; }
+  .track-btn { --icon: clamp(24px, 5.5vh, 34px); flex-basis: clamp(46px, 6vw, 64px); }
   /* Peu de hauteur : les trois instruments passent côte à côte, en icônes seules. */
   #live-side { flex-basis: clamp(104px, 18vw, 170px); }
   #live-instruments { flex-direction: row; }
@@ -696,10 +682,18 @@ footer {
 }
 .picker-head {
   text-align: center;
-  font-size: clamp(20px, 3.2vw, 30px);
+  font-size: clamp(11px, 1.4vw, 15px);
+  text-transform: uppercase;
+  letter-spacing: .2px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;   /* « grosse caisse » passe à la ligne, ne déborde pas */
   font-weight: 800;
   color: var(--c);
-  line-height: 1.1;
+}
+/* La jauge de note affiche une note, pas un mot : elle peut rester en gros. */
+.note-picker .picker-head {
+  font-size: clamp(20px, 3.2vw, 30px);
+  text-transform: none;
 }
 .picker-track {
   position: relative;

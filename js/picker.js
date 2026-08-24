@@ -14,7 +14,7 @@ import { MAX_DEGREE } from './patterns.js';
 
 const TOP_RATIO = 0.05;        // marge haute, en fraction de la hauteur d'écran
 const HEIGHT_RATIO = 0.9;
-const WIDTH = { min: 92, max: 150 };
+const WIDTH = { min: 104, max: 150 };
 
 export class Gauge {
   constructor(root, count, variante = '') {
@@ -51,8 +51,12 @@ export class Gauge {
     this.open = false;
   }
 
-  /** Ouvre la jauge à côté de l'élément touché. */
-  show({ rect, color, index, labels }) {
+  /**
+   * Ouvre la jauge à côté de l'élément touché.
+   * « titre » remplace la valeur en tête de jauge, quand il y a mieux à dire
+   * (le nom de l'instrument, par exemple).
+   */
+  show({ rect, color, index, labels, titre = null }) {
     const width = Math.max(WIDTH.min, Math.min(rect.width * 2.4, WIDTH.max));
     const height = window.innerHeight * HEIGHT_RATIO;
     const top = window.innerHeight * TOP_RATIO;
@@ -72,6 +76,7 @@ export class Gauge {
 
     labels.forEach((label, i) => { this.ticks[i].querySelector('span').textContent = label; });
     this.labels = labels;
+    this.titre = titre;
     this.el.classList.remove('hidden');
     this.open = true;
     this.highlight(index);
@@ -88,7 +93,7 @@ export class Gauge {
     this.fill.style.height = `${(index + 1) * share}%`;
     this.thumb.style.bottom = `${index * share}%`;
     this.thumbLabel.textContent = this.labels?.[index] ?? '';
-    this.head.textContent = this.labels?.[index] ?? '';
+    this.head.textContent = this.titre ?? this.labels?.[index] ?? '';
     this.ticks.forEach((tick, i) => tick.classList.toggle('on', i === index));
   }
 
@@ -117,8 +122,8 @@ const VOLUME_LABELS = VOLUME_STEPS.map((v) => (v === 0 ? 'muet' : `${Math.round(
 export class VolumePicker extends Gauge {
   constructor(root) { super(root, VOLUME_STEPS.length, 'volume-picker'); }
 
-  show({ rect, color, volume }) {
-    super.show({ rect, color, index: this.indexOf(volume), labels: VOLUME_LABELS });
+  show({ rect, color, volume, titre }) {
+    super.show({ rect, color, index: this.indexOf(volume), labels: VOLUME_LABELS, titre });
   }
 
   /** Cran le plus proche du volume courant. */
