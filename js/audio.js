@@ -110,12 +110,14 @@ export class AudioEngine {
     this.spaceSend.connect(this.reverb);
     this.reverb.connect(this.master);
 
-    // Un gain par piste : permet de couper une couche instantanément.
+    // Un gain par piste : coupure instantanée et volume réglable.
+    this.trackVolume = {};
     for (const id of ['kick', 'snare', 'hat', 'bass', 'chord', 'lead']) {
       const g = ctx.createGain();
       g.gain.value = 1;
       g.connect(this.bus);
       this.tracks[id] = g;
+      this.trackVolume[id] = 1;
     }
 
     this.noise = this.makeNoise(2);
@@ -159,7 +161,17 @@ export class AudioEngine {
   setTrackEnabled(id, on) {
     const g = this.tracks[id];
     if (!g) return;
-    g.gain.setTargetAtTime(on ? 1 : 0, this.ctx.currentTime, 0.02);
+    this.trackOn = this.trackOn || {};
+    this.trackOn[id] = on;
+    g.gain.setTargetAtTime(on ? this.trackVolume[id] : 0, this.ctx.currentTime, 0.02);
+  }
+
+  /** Volume d'une piste (1 = normal). Sans effet si la piste est coupée. */
+  setTrackVolume(id, volume) {
+    if (!this.ctx || !this.tracks[id]) return;
+    this.trackVolume[id] = volume;
+    if (this.trackOn?.[id] === false) return;
+    this.tracks[id].gain.setTargetAtTime(volume, this.ctx.currentTime, 0.03);
   }
 
   /** value 0..1 -> fréquence de coupure musicale (200 Hz -> 18 kHz). */
@@ -460,7 +472,8 @@ export class AudioEngine {
   setSoloKick(on, enabled) {
     if (!this.ctx) return;
     for (const [id, gain] of Object.entries(this.tracks)) {
-      const target = on ? (id === 'kick' ? 1 : 0) : (enabled[id] ? 1 : 0);
+      const volume = this.trackVolume[id];
+      const target = on ? (id === 'kick' ? volume : 0) : (enabled[id] ? volume : 0);
       gain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.02);
     }
   }

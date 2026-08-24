@@ -1,5 +1,6 @@
 // Définition des pistes, des gammes et des styles musicaux.
-// Tout est pensé "gamme pentatonique" : aucune note ne peut sonner faux.
+// Les notes disponibles sont toujours celles de la tonalité : rien ne peut
+// sonner faux, quoi que l'enfant appuie.
 
 export const STEPS = 16;
 
@@ -19,11 +20,26 @@ export const PHRASE_NAMES = ['A', 'B', 'C', 'D'];
 /** Pistes jouables au clavier du mode live. */
 export const LIVE_TRACKS = ['bass', 'chord', 'lead'];
 
-// Gammes pentatoniques (5 notes) : impossible de faire une fausse note.
+/**
+ * Gammes.
+ *
+ * Par défaut, pentatonique (5 notes) : impossible de faire une fausse note,
+ * c'est ce qui permet à un enfant d'appuyer n'importe où. Les styles qui
+ * portent un thème connu ont besoin des sept notes (le « fa » de Frère
+ * Jacques, le « si » d'Alouette) : ils déclarent « fullScale ». Toutes les
+ * notes restent dans la tonalité, donc rien ne peut sonner faux non plus.
+ */
 export const SCALES = {
-  major: [0, 2, 4, 7, 9],   // ☀️ joyeux
-  minor: [0, 3, 5, 7, 10],  // 🌙 mystérieux
+  major: [0, 2, 4, 7, 9],              // ☀️ joyeux
+  minor: [0, 3, 5, 7, 10],             // 🌙 mystérieux
+  majorFull: [0, 2, 4, 5, 7, 9, 11],   // do ré mi fa sol la si
+  minorFull: [0, 2, 3, 5, 7, 8, 10],   // gamme mineure naturelle
 };
+
+/** Nom de la gamme à utiliser, selon le mode et le style. */
+export function scaleName(mode, full) {
+  return full ? `${mode}Full` : mode;
+}
 
 // Notes affichées à l'écran (do, ré, mi...) et leur décalage en demi-tons.
 export const KEYS = [
@@ -39,7 +55,8 @@ export const KEYS = [
 // Octave de base de chaque piste mélodique (en numéro de note MIDI).
 export const TRACK_ROOT = { bass: 36, chord: 48, lead: 60 };
 
-// Nombre de degrés disponibles sur un pad mélodique (2 octaves de pentatonique).
+// Nombre de degrés disponibles sur un pad mélodique (une dizaine de notes,
+// soit deux octaves en pentatonique, une octave et demie en gamme complète).
 export const MAX_DEGREE = 9;
 
 /**
@@ -80,24 +97,27 @@ function phrase(lines) {
  * Chaque style est un petit morceau de quatre phrases :
  *   A = couplet (le groove de base)
  *   B = variation (même harmonie, ça bouge un peu plus)
- *   C = pont (ça retombe, la batterie s'allège)
- *   D = refrain (le moment fort, la mélodie principale)
+ *   C = le thème (une mélodie connue, arrangée dans le style)
+ *   D = la suite du thème, en version complète
  * En mode chaîne, A → B → C → D s'enchaînent tout seuls : c'est une chanson.
  *
- * Les mélodies sont écrites en degrés de gamme pentatonique : le degré 0 est la
- * tonique, 5 la tonique une octave plus haut. Basse et accords partagent les
- * mêmes degrés à chaque instant, pour que l'harmonie tienne debout.
+ * Les thèmes sont des mélodies du domaine public (traditionnels et classiques) :
+ * un enfant les reconnaît, et elles peuvent être reprises librement.
+ *
+ * Les mélodies s'écrivent en degrés de gamme : le degré 0 est la tonique.
+ * Basse et accords posent les mêmes degrés aux mêmes instants, pour que
+ * l'harmonie tienne debout.
  */
 export const STYLES = [
   {
-    id: 'techno', icon: 'robot', label: 'Techno', tempo: 126, mode: 'minor', swing: 0,
+    id: 'techno', icon: 'robot', label: 'Techno', tempo: 126, mode: 'minor', swing: 0, fullScale: true,
     sound: {
       kick:  { tune: 158, drop: 44, decay: 0.42, click: 0.3 },
       snare: { kind: 'clap', decay: 0.16 },
       hat:   { decay: 0.045, metal: true, hp: 8200, level: 0.26 },
       bass:  { wave: 'sawtooth', sub: 0.4, cutoff: 620, decay: 1.1, level: 0.42 },
       chord: { wave: 'sawtooth', detune: 12, cutoff: 1700, attack: 0.01, hold: 3.5, level: 0.1 },
-      lead:  { wave: 'square', detune: 7, cutoff: 3800, decay: 1.1, level: 0.2 },
+      lead:  { wave: 'square', detune: 7, cutoff: 3800, decay: 1.1, level: 0.13 },
     },
     fx: { filter: 0.85, delay: 0.25, space: 0.2 },
     phrases: [
@@ -117,29 +137,29 @@ export const STYLES = [
         chord: '0-------3-------',
         lead:  '--5---4---2-----',
       }),
-      phrase({ // C — tout retombe, il ne reste que la lumière
-        kick:  '----------------',
-        snare: '----------------',
+      phrase({ // C — le thème : « Dans l'antre du roi de la montagne » (Grieg, 1875)
+        kick:  'x---x---x---x---',
+        snare: '----x-------x---',
         hat:   '--x---x---x---x-',
-        bass:  '0-------3-------',
-        chord: '0---0---3---4---',
-        lead:  '5-4-2-0-2-4-5---',
+        bass:  '0---0---0---0---',
+        chord: '0---------------',
+        lead:  '0-1-2-4-3-2-4-3-',
       }),
-      phrase({ // D — refrain, tout revient d'un coup
+      phrase({ // D — le thème monte d'un cran, tout est là
         kick:  'x---x---x---x---',
         snare: '----x-------x---',
         hat:   'x-x-x-x-x-x-x-x-',
-        bass:  '0-0-0-3-2-2-4-3-',
-        chord: '0-----3-4-------',
-        lead:  '7---5-4-5---7-9-',
+        bass:  '0-0-0-0-4-4-4-4-',
+        chord: '0-------4-------',
+        lead:  '0-1-2-4-3-2-1-0-',
       }),
     ],
   },
   {
-    id: 'rock', icon: 'pick', label: 'Rock', tempo: 118, mode: 'major', swing: 0,
+    id: 'rock', icon: 'pick', label: 'Rock', tempo: 118, mode: 'major', swing: 0, fullScale: true,
     sound: {
       kick:  { tune: 172, drop: 55, decay: 0.28, click: 0.35 },
-      snare: { kind: 'snare', tone: 205, decay: 0.22, noise: 0.62 },
+      snare: { kind: 'snare', tone: 205, decay: 0.22, noise: 0.45 },
       hat:   { decay: 0.05, hp: 6800, level: 0.3 },
       bass:  { wave: 'square', sub: 0.3, cutoff: 900, decay: 1.4, level: 0.4 },
       chord: { wave: 'sawtooth', detune: 14, cutoff: 2100, attack: 0.006, hold: 2.6, level: 0.12 },
@@ -163,33 +183,33 @@ export const STYLES = [
         chord: '0-------3-------',
         lead:  '--2-3---2-------',
       }),
-      phrase({ // C — pont, on lève le pied
-        kick:  'x-------x-------',
-        snare: '------------x---',
-        hat:   '--x---x---x---x-',
-        bass:  '4-------3-------',
-        chord: '4-------3-------',
-        lead:  '--5-4---3-2-----',
+      phrase({ // C — le thème : « Ode à la joie » (Beethoven, 1824)
+        kick:  'x-----x-x-------',
+        snare: '----x-------x---',
+        hat:   'x-x-x-x-x-x-x-x-',
+        bass:  '0-------4-------',
+        chord: '0-------4-------',
+        lead:  '2-2-3-4-4-3-2-1-',
       }),
-      phrase({ // D — refrain, la mélodie chante
+      phrase({ // D — la réponse du thème, pied au plancher
         kick:  'x-----x-x---x-x-',
         snare: '----x-------x---',
         hat:   'x-x-x-x-x-x-xxx-',
-        bass:  '0-0-0-0-3-3-2-2-',
-        chord: '0---0---3---2---',
-        lead:  '5---4-5-7---5-4-',
+        bass:  '0---0---4---0---',
+        chord: '0---0---4---0---',
+        lead:  '0-0-1-2-2-1-1---',
       }),
     ],
   },
   {
-    id: 'hiphop', icon: 'mic', label: 'Hip-Hop', tempo: 88, mode: 'minor', swing: 0.18,
+    id: 'hiphop', icon: 'mic', label: 'Hip-Hop', tempo: 88, mode: 'major', swing: 0.18,
     sound: {
       kick:  { tune: 124, drop: 36, decay: 0.85, click: 0.18 },
       snare: { kind: 'snare', tone: 180, decay: 0.19, noise: 0.5 },
       hat:   { decay: 0.04, hp: 8000, level: 0.24 },
       bass:  { wave: 'triangle', sub: 0.65, cutoff: 430, decay: 2.2, level: 0.46, glide: 0.05 },
       chord: { wave: 'triangle', detune: 6, cutoff: 1500, attack: 0.05, hold: 4.5, level: 0.13 },
-      lead:  { wave: 'square', detune: 4, cutoff: 2200, decay: 1.6, level: 0.16 },
+      lead:  { wave: 'square', detune: 4, cutoff: 2200, decay: 1.6, level: 0.15 },
     },
     fx: { filter: 0.8, delay: 0.2, space: 0.25 },
     phrases: [
@@ -209,33 +229,33 @@ export const STYLES = [
         chord: '0-------2-------',
         lead:  '----4-5---4-----',
       }),
-      phrase({ // C — pont tout doux
-        kick:  'x---------------',
-        snare: '------------x---',
-        hat:   '--x---x---x---x-',
-        bass:  '4-------2-------',
-        chord: '4-------2-------',
-        lead:  '--7-5---4-2-----',
+      phrase({ // C — le thème : « Au clair de la lune » (traditionnel)
+        kick:  'x-----x--x------',
+        snare: '----x-------x---',
+        hat:   'x-x-x-x-x-x-x-x-',
+        bass:  '0------2--0-----',
+        chord: '0---------------',
+        lead:  '0-0-0-1-2---1---',
       }),
-      phrase({ // D — refrain
+      phrase({ // D — la suite du thème, arrangement complet
         kick:  'x-----x--x--x---',
         snare: '----x-------x---',
         hat:   'x-xxx-x-x-xxx-x-',
-        bass:  '0-0----2--0-4---',
-        chord: '0---2---4---2---',
-        lead:  '5---4-2---4-5-7-',
+        bass:  '0-0----2--0-3---',
+        chord: '0-------3-------',
+        lead:  '0-2-1-1-0-------',
       }),
     ],
   },
   {
-    id: 'reggae', icon: 'palm', label: 'Reggae', tempo: 78, mode: 'major', swing: 0.1,
+    id: 'reggae', icon: 'palm', label: 'Reggae', tempo: 78, mode: 'major', swing: 0.1, fullScale: true,
     sound: {
       kick:  { tune: 130, drop: 42, decay: 0.5, click: 0.1 },
       snare: { kind: 'rim', tone: 400, decay: 0.12, noise: 0.35 },
       hat:   { decay: 0.2, hp: 7200, level: 0.22 },
       bass:  { wave: 'sine', sub: 0.5, cutoff: 380, decay: 1.8, level: 0.5, glide: 0.06 },
       chord: { wave: 'square', detune: 5, cutoff: 1900, attack: 0.004, hold: 0.9, level: 0.11 },
-      lead:  { wave: 'triangle', detune: 5, cutoff: 2400, decay: 1.7, level: 0.18 },
+      lead:  { wave: 'triangle', detune: 5, cutoff: 2400, decay: 1.7, level: 0.11 },
     },
     fx: { filter: 0.75, delay: 0.45, space: 0.35 },
     phrases: [
@@ -255,33 +275,33 @@ export const STYLES = [
         chord: '--0---0---3---3-',
         lead:  '------------5-4-',
       }),
-      phrase({ // C — pont, presque rien
-        kick:  '----------------',
-        snare: '----------------',
-        hat:   '--x-------x-----',
-        bass:  '3-------4-------',
-        chord: '--3---3---4---4-',
-        lead:  '--5---4---2-----',
+      phrase({ // C — le thème : « Frère Jacques » (traditionnel)
+        kick:  '--------x-------',
+        snare: '--------x-------',
+        hat:   '--x---x---x---x-',
+        bass:  '0--2----0--4----',
+        chord: '--0---0---0---0-',
+        lead:  '0-1-2-0-0-1-2-0-',
       }),
-      phrase({ // D — refrain au soleil
+      phrase({ // D — « Dormez-vous ? », tout le monde joue
         kick:  '--------x---x---',
         snare: '--------x-------',
         hat:   '--x---x---x-x-x-',
-        bass:  '0--2--3-4--3--2-',
-        chord: '--0---0---3---2-',
-        lead:  '5---4-5-7---5---',
+        bass:  '2--4----2--0----',
+        chord: '--2---2---4---4-',
+        lead:  '2-3-4---2-3-4---',
       }),
     ],
   },
   {
-    id: 'disco', icon: 'disco', label: 'Disco', tempo: 116, mode: 'major', swing: 0,
+    id: 'disco', icon: 'disco', label: 'Disco', tempo: 116, mode: 'major', swing: 0, fullScale: true,
     sound: {
       kick:  { tune: 165, drop: 50, decay: 0.3, click: 0.28 },
       snare: { kind: 'clap', decay: 0.18 },
       hat:   { decay: 0.2, metal: true, hp: 7600, level: 0.26 },
       bass:  { wave: 'sawtooth', sub: 0.25, cutoff: 1100, decay: 0.9, level: 0.4 },
       chord: { wave: 'sawtooth', detune: 16, cutoff: 2600, attack: 0.008, hold: 2.2, level: 0.12 },
-      lead:  { wave: 'square', detune: 8, cutoff: 4200, decay: 1.2, level: 0.2 },
+      lead:  { wave: 'square', detune: 8, cutoff: 4200, decay: 1.2, level: 0.13 },
     },
     fx: { filter: 0.9, delay: 0.2, space: 0.25 },
     phrases: [
@@ -301,33 +321,33 @@ export const STYLES = [
         chord: '----2-------4---',
         lead:  '--------7-5-----',
       }),
-      phrase({ // C — pont, la boule tourne
-        kick:  '----------------',
+      phrase({ // C — le thème : le galop d'Offenbach, alias le french cancan (1858)
+        kick:  'x---x---x---x---',
         snare: '----x-------x---',
         hat:   'x-x-x-x-x-x-x-x-',
-        bass:  '4-------2-------',
-        chord: '4---4---2---2---',
-        lead:  '9-7-5---7-5-4---',
+        bass:  '0-4-0-4-0-4-0-4-',
+        chord: '0-------4-------',
+        lead:  '4-4-5-4-3-2-1-2-',
       }),
-      phrase({ // D — refrain paillettes
+      phrase({ // D — la remontée, paillettes comprises
         kick:  'x---x---x---x---',
         snare: '----x-------x---',
         hat:   '--x-x-x---x-x-x-',
         bass:  '0-5-0-5-4-9-3-8-',
         chord: '0---2---4---3---',
-        lead:  '5-7-9---7-5-4-5-',
+        lead:  '2-1-0-1-2-3-4---',
       }),
     ],
   },
   {
-    id: 'chill', icon: 'cloud', label: 'Doux', tempo: 72, mode: 'major', swing: 0.16,
+    id: 'chill', icon: 'cloud', label: 'Doux', tempo: 72, mode: 'major', swing: 0.16, fullScale: true,
     sound: {
       kick:  { tune: 112, drop: 44, decay: 0.4, click: 0.05, level: 0.95 },
       snare: { kind: 'brush', decay: 0.14, noise: 0.35 },
-      hat:   { decay: 0.035, hp: 9000, level: 0.16 },
+      hat:   { decay: 0.05, hp: 9000, level: 0.26 },
       bass:  { wave: 'sine', sub: 0.55, cutoff: 400, decay: 2.4, level: 0.46 },
-      chord: { wave: 'triangle', detune: 8, cutoff: 1300, attack: 0.12, hold: 6, level: 0.18 },
-      lead:  { wave: 'sine', detune: 3, cutoff: 2000, decay: 2, level: 0.23 },
+      chord: { wave: 'triangle', detune: 8, cutoff: 1300, attack: 0.12, hold: 6, level: 0.11 },
+      lead:  { wave: 'sine', detune: 3, cutoff: 2000, decay: 2, level: 0.09 },
     },
     fx: { filter: 0.6, delay: 0.3, space: 0.5 },
     phrases: [
@@ -335,7 +355,7 @@ export const STYLES = [
         kick:  'x-------x-------',
         snare: '----x-------x---',
         hat:   '--x---x---x---x-',
-        bass:  '0-------3-------',
+        bass:  '0-------4-------',
         chord: '0---------------',
         lead:  '----------------',
       }),
@@ -343,37 +363,37 @@ export const STYLES = [
         kick:  'x-------x-------',
         snare: '----x-------x---',
         hat:   '--x---x---x---x-',
-        bass:  '0-------3-------',
-        chord: '0-------3-------',
+        bass:  '0-------4-------',
+        chord: '0-------4-------',
         lead:  '----5---4-------',
       }),
-      phrase({ // C — pont, presque endormi
-        kick:  '----------------',
-        snare: '----------------',
-        hat:   '------x-------x-',
-        bass:  '4---------------',
-        chord: '4-------2-------',
-        lead:  '--7---5---4-----',
+      phrase({ // C — le thème : « Ah ! vous dirai-je, maman » (traditionnel)
+        kick:  'x-------x-------',
+        snare: '----x-------x---',
+        hat:   '--x---x---x---x-',
+        bass:  '0-------4-------',
+        chord: '0-------4-------',
+        lead:  '0-0-4-4-5-5-4---',
       }),
-      phrase({ // D — refrain tout en douceur
+      phrase({ // D — la descente : fa fa mi mi ré ré do
         kick:  'x-------x---x---',
         snare: '----x-------x---',
         hat:   '--x---x---x---x-',
-        bass:  '0---0---3---4---',
-        chord: '0---0---3---4---',
-        lead:  '5---4---2-4-5---',
+        bass:  '3-------4-------',
+        chord: '3-------4-------',
+        lead:  '3-3-2-2-1-1-0---',
       }),
     ],
   },
   {
-    id: 'latino', icon: 'maracas', label: 'Latino', tempo: 104, mode: 'minor', swing: 0,
+    id: 'latino', icon: 'maracas', label: 'Latino', tempo: 104, mode: 'major', swing: 0, fullScale: true,
     sound: {
       kick:  { tune: 150, drop: 52, decay: 0.26, click: 0.22 },
       snare: { kind: 'rim', tone: 480, decay: 0.1, noise: 0.4 },
       hat:   { decay: 0.035, metal: true, hp: 8600, level: 0.2 },
       bass:  { wave: 'triangle', sub: 0.4, cutoff: 700, decay: 1.2, level: 0.44 },
       chord: { wave: 'square', detune: 7, cutoff: 2300, attack: 0.005, hold: 1.2, level: 0.11 },
-      lead:  { wave: 'triangle', detune: 6, cutoff: 2800, decay: 1.3, level: 0.19 },
+      lead:  { wave: 'triangle', detune: 6, cutoff: 2800, decay: 1.3, level: 0.25 },
     },
     fx: { filter: 0.95, delay: 0.15, space: 0.2 },
     phrases: [
@@ -393,33 +413,33 @@ export const STYLES = [
         chord: '--0-2---0-2-----',
         lead:  '--------5-4-----',
       }),
-      phrase({ // C — pont, on respire
-        kick:  'x-------x-------',
-        snare: '------------x---',
-        hat:   '--x---x---x---x-',
-        bass:  '4-------2-------',
-        chord: '4---4---2---2---',
-        lead:  '7-5-4---5-------',
+      phrase({ // C — le thème : « La Cucaracha » (traditionnel)
+        kick:  'x-----x---x-x---',
+        snare: '--x---x-----x---',
+        hat:   'x-xxx-xxx-xxx-xx',
+        bass:  '0--0--4---0-----',
+        chord: '--0-------3-----',
+        lead:  '0-0-0---3---5---',
       }),
-      phrase({ // D — refrain qui danse
+      phrase({ // D — la réponse qui redescend, tout le monde danse
         kick:  'x-----x---x-x-x-',
         snare: '--x---x-----x---',
         hat:   'x-xxx-xxx-xxxxxx',
-        bass:  '0--0--3-2-2--4--',
-        chord: '--0-2---3-4-----',
-        lead:  '5-4-2-4-5-7-5---',
+        bass:  '0--0--4---3--0--',
+        chord: '--4-------0-----',
+        lead:  '5---4-3-2---1-0-',
       }),
     ],
   },
   {
-    id: 'jeuvideo', icon: 'gamepad', label: 'Jeu vidéo', tempo: 140, mode: 'major', swing: 0,
+    id: 'jeuvideo', icon: 'gamepad', label: 'Jeu vidéo', tempo: 140, mode: 'major', swing: 0, fullScale: true,
     sound: {
       kick:  { tune: 180, drop: 60, decay: 0.16, click: 0.4 },
       snare: { kind: 'snare', tone: 240, decay: 0.12, noise: 0.6, hp: 2200 },
       hat:   { decay: 0.03, hp: 9500, level: 0.2 },
       bass:  { wave: 'square', sub: 0, cutoff: 4000, decay: 0.8, level: 0.3 },
       chord: { wave: 'square', detune: 0, cutoff: 5000, attack: 0.002, hold: 1.6, level: 0.08 },
-      lead:  { wave: 'square', detune: 0, cutoff: 6000, decay: 0.7, level: 0.17 },
+      lead:  { wave: 'square', detune: 0, cutoff: 6000, decay: 0.7, level: 0.22 },
     },
     fx: { filter: 1, delay: 0.18, space: 0.1 },
     phrases: [
@@ -439,21 +459,21 @@ export const STYLES = [
         chord: '0-------2-------',
         lead:  '5-7-9-7-5-4-2---',
       }),
-      phrase({ // C — le niveau bonus
-        kick:  'x-------x-------',
-        snare: '--------x-------',
+      phrase({ // C — le thème : « Alouette » (traditionnel)
+        kick:  'x---x---x---x---',
+        snare: '----x-------x---',
         hat:   'x-x-x-x-x-x-x-x-',
-        bass:  '4-4-4-4-2-2-2-2-',
-        chord: '4-------2-------',
-        lead:  '9-8-7-8-9-7-5-4-',
+        bass:  '0-0-4-4-0-0-4-4-',
+        chord: '0-------4-------',
+        lead:  '4-4-4-5-6---5-4-',
       }),
-      phrase({ // D — le grand final
+      phrase({ // D — deuxième ligne du thème, grand final
         kick:  'x---x---x-x-x---',
         snare: '----x-------x-x-',
         hat:   'xxxxxxxxxxxxxxxx',
         bass:  '0-0-0-4-2-2-3-3-',
-        chord: '0---2---4---3---',
-        lead:  '5-7-9---7-9-5-4-',
+        chord: '0---2---4---0---',
+        lead:  '4-4-4-5-6-6-5-4-',
       }),
     ],
   },

@@ -35,7 +35,33 @@ const check = (name, ok, detail = '') => {
 
 // --- Contrôle des motifs, sans navigateur --------------------------------------
 
-const { STYLES, TRACKS, STEPS, PHRASES, MAX_DEGREE } = await import('../js/patterns.js');
+const { STYLES, TRACKS, STEPS, PHRASES, MAX_DEGREE, SCALES, scaleName, noteName, TRACK_ROOT } =
+  await import('../js/patterns.js');
+
+// Les thèmes du domaine public, note à note : une retouche de motif qui les
+// abîmerait serait sinon invisible.
+const THEMES = {
+  techno:   ['do ré ré♯ sol fa ré♯ sol fa', 'do ré ré♯ sol fa ré♯ ré do'],
+  rock:     ['mi mi fa sol sol fa mi ré', 'do do ré mi mi ré ré'],
+  hiphop:   ['do do do ré mi ré', 'do mi ré ré do'],
+  reggae:   ['do ré mi do do ré mi do', 'mi fa sol mi fa sol'],
+  disco:    ['sol sol la sol fa mi ré mi', 'mi ré do ré mi fa sol'],
+  chill:    ['do do sol sol la la sol', 'fa fa mi mi ré ré do'],
+  latino:   ['do do do fa la', 'la sol fa mi ré do'],
+  jeuvideo: ['sol sol sol la si la sol', 'sol sol sol la si si la sol'],
+};
+
+function notesJouees(style, index) {
+  const scale = SCALES[scaleName(style.mode, style.fullScale)];
+  return style.phrases[index].lead
+    .filter((d) => d !== null)
+    .map((d) => {
+      const n = scale.length;
+      const m = TRACK_ROOT.lead + scale[((d % n) + n) % n] + 12 * Math.floor(d / n);
+      return noteName(m);
+    })
+    .join(' ');
+}
 
 for (const style of STYLES) {
   const soucis = [];
@@ -59,6 +85,15 @@ for (const style of STYLES) {
     if (vide) soucis.push(`${'ABCD'[i]} est vide`);
   });
   if (style.tempo < 60 || style.tempo > 180) soucis.push(`tempo ${style.tempo}`);
+  // Les phrases C et D portent le thème : il leur faut une vraie mélodie,
+  // et exactement les notes attendues.
+  [2, 3].forEach((i) => {
+    const notes = style.phrases[i].lead.filter((v) => v !== null).length;
+    if (notes < 4) soucis.push(`${'ABCD'[i]} : ${notes} note(s) de mélodie`);
+    const attendu = THEMES[style.id]?.[i - 2];
+    const joue = notesJouees(style, i);
+    if (attendu && joue !== attendu) soucis.push(`${'ABCD'[i]} : « ${joue} » au lieu de « ${attendu} »`);
+  });
   check(`motifs du style ${style.label}`, soucis.length === 0, soucis.join(', '));
 }
 
@@ -232,13 +267,13 @@ const padBox = await page.locator('.row[data-track="lead"] .pad').nth(1).boundin
 const padX = padBox.x + padBox.width / 2;
 const padY = padBox.y + padBox.height / 2;
 await doigt('touchStart', padX, padY);
-const jauge = await page.locator('.picker').boundingBox();
+const jauge = await page.locator('.note-picker').boundingBox();
 await glisser(padX, padY, jauge.y + 12);
 const aigu = await page.evaluate(() => window.groovebox.state.patterns.lead[1]);
 await glisser(padX, jauge.y + 12, jauge.y + jauge.height - 12);
 const grave = await page.evaluate(() => window.groovebox.state.patterns.lead[1]);
 await doigt('touchEnd', padX, jauge.y + jauge.height - 12);
-const referme = await page.evaluate(() => document.querySelector('.picker').classList.contains('hidden'));
+const referme = await page.evaluate(() => document.querySelector('.note-picker').classList.contains('hidden'));
 check('la jauge suit un vrai doigt qui glisse',
       aigu === 9 && grave === 0 && referme && jauge.height > SIZES[0].height * 0.7,
       `haut : ${aigu}, bas : ${grave}, jauge ${Math.round(jauge.width)}×${Math.round(jauge.height)} px`);
@@ -342,6 +377,69 @@ const sauts = await page.evaluate(async () => {
   return [...vus];
 });
 check('les animaux bougent quand leur piste joue', sauts.length >= 3, `pistes animées : ${sauts.join(', ')}`);
+
+// Pendant la lecture, ajouter une note ne doit PAS déclencher de son en plus :
+// la boucle parle déjà. À l'arrêt, en revanche, on veut s'entendre.
+await page.evaluate(() => {
+  const { handlers, state, engine } = window.groovebox;
+  handlers.onClear();
+  state.tempo = 60;
+  // Piste coupée : le séquenceur ne la joue jamais, mais la prévisualisation
+  // au clic, si elle existait, passerait quand même. Le relevé est donc net.
+  state.enabled.lead = false;
+  engine.setTrackEnabled('lead', false);
+  window.__leads = 0;
+  const vrai = engine.lead.bind(engine);
+  engine.lead = (...args) => { window.__leads++; return vrai(...args); };
+});
+const padMelodie = page.locator('.row[data-track="lead"] .pad').nth(7);
+await padMelodie.dispatchEvent('pointerdown', { pointerId: 50 });
+await padMelodie.dispatchEvent('pointerup', { pointerId: 50 });
+await page.waitForTimeout(300);
+const pendantLecture = await page.evaluate(() => window.__leads);
+await page.evaluate(() => { window.groovebox.sequencer.stop(); window.__leads = 0; });
+const autrePad = page.locator('.row[data-track="lead"] .pad').nth(9);
+await autrePad.dispatchEvent('pointerdown', { pointerId: 51 });
+await autrePad.dispatchEvent('pointerup', { pointerId: 51 });
+await page.waitForTimeout(200);
+const aLArret = await page.evaluate(() => window.__leads);
+await page.evaluate(() => {
+  window.groovebox.sequencer.start();
+  window.groovebox.state.enabled.lead = true;
+  window.groovebox.engine.setTrackEnabled('lead', true);
+});
+check('le son du clic ne double pas la musique',
+      pendantLecture === 0 && aLArret > 0,
+      `pendant la lecture : ${pendantLecture}, à l'arrêt : ${aLArret}`);
+
+// Volume par piste : appui long sur l'animal, jauge, réglage jusqu'au silence.
+const animal = page.locator('.track-btn[data-track="lead"]');
+const animalBox = await animal.boundingBox();
+await animal.dispatchEvent('pointerdown', { pointerId: 52 });
+await page.waitForTimeout(700);
+const jaugeVolume = await page.locator('.volume-picker').boundingBox();
+await animal.dispatchEvent('pointermove', {
+  pointerId: 52, clientX: animalBox.x, clientY: jaugeVolume.y + jaugeVolume.height - 10,
+});
+await page.waitForTimeout(150);
+await animal.dispatchEvent('pointerup', { pointerId: 52 });
+const apresReglage = await page.evaluate(() => ({
+  volume: window.groovebox.state.volumes.lead,
+  gain: Math.round(window.groovebox.engine.tracks.lead.gain.value * 100) / 100,
+  allumee: window.groovebox.state.enabled.lead,
+  jaugeFermee: document.querySelector('.volume-picker').classList.contains('hidden'),
+}));
+// Un appui court, lui, coupe et rallume la piste.
+await animal.dispatchEvent('pointerdown', { pointerId: 53 });
+await animal.dispatchEvent('pointerup', { pointerId: 53 });
+const apresAppuiCourt = await page.evaluate(() => window.groovebox.state.enabled.lead);
+await animal.dispatchEvent('pointerdown', { pointerId: 54 });
+await animal.dispatchEvent('pointerup', { pointerId: 54 });
+await page.evaluate(() => window.groovebox.handlers.onTrackVolume('lead', 1));
+check('volume par piste à l\'appui long, coupure à l\'appui court',
+      apresReglage.volume === 0 && apresReglage.allumee && apresReglage.jaugeFermee
+        && apresAppuiCourt === false,
+      JSON.stringify({ ...apresReglage, apresAppuiCourt }));
 
 // Emplacements de sauvegarde : garder, casser le morceau, recharger.
 await page.click('#songs');

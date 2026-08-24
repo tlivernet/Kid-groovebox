@@ -5,7 +5,7 @@ export const SLOTS = 6;
 const SONGS_KEY = 'kid-groovebox-songs-v1';
 
 // Réglages simples enregistrés tels quels (le reste est validé à part).
-const FIELDS = ['styleId', 'tempo', 'keyIndex', 'mode', 'transpose', 'swing',
+const FIELDS = ['styleId', 'tempo', 'keyIndex', 'mode', 'fullScale', 'transpose', 'swing',
                 'filter', 'delay', 'space', 'view', 'liveTrack', 'octave', 'chain'];
 
 /** Photo du morceau, prête à passer par JSON. */
@@ -13,6 +13,7 @@ export function serialize(state) {
   const data = { version: 2 };
   for (const key of FIELDS) data[key] = state[key];
   data.enabled = { ...state.enabled };
+  data.volumes = { ...state.volumes };
   data.phrases = state.phrases.map((phrase) => {
     const copy = {};
     for (const t of TRACKS) copy[t.id] = [...phrase[t.id]];
@@ -33,6 +34,8 @@ export function applySong(state, data) {
   }
   for (const t of TRACKS) {
     if (typeof data.enabled?.[t.id] === 'boolean') state.enabled[t.id] = data.enabled[t.id];
+    const volume = data.volumes?.[t.id];
+    if (typeof volume === 'number' && volume >= 0 && volume <= 2) state.volumes[t.id] = volume;
   }
   if (Array.isArray(data.phrases)) {
     data.phrases.slice(0, PHRASES).forEach((phrase, i) => {

@@ -1,7 +1,7 @@
 // Assemblage : état, sauvegarde, effets de scène, jeu en direct, démarrage.
 import {
   TRACKS, STYLES, STEPS, MAX_DEGREE, TRACK_ROOT, KEYS, PUNCH_FX,
-  getStyle, cloneSong, emptyPatterns, noteName,
+  getStyle, cloneSong, emptyPatterns, noteName, scaleName,
 } from './patterns.js';
 import { AudioEngine, degreeToMidi } from './audio.js';
 import { Sequencer } from './sequencer.js';
@@ -22,12 +22,14 @@ function makeState(styleId) {
     tempo: style.tempo,
     keyIndex: 0,
     mode: style.mode,
+    fullScale: !!style.fullScale,
     transpose: 0,
     swing: style.swing,
     filter: style.fx.filter,
     delay: style.fx.delay,
     space: style.fx.space,
     enabled: Object.fromEntries(TRACKS.map((t) => [t.id, true])),
+    volumes: Object.fromEntries(TRACKS.map((t) => [t.id, 1])),
     phrases: cloneSong(style),
     phraseIndex: 0,
     queuedPhrase: null,
@@ -78,7 +80,10 @@ function applyMix() {
   engine.setDelay(state.delay);
   engine.setSpace(state.space);
   engine.syncDelay(state.tempo);
-  for (const t of TRACKS) engine.setTrackEnabled(t.id, state.enabled[t.id]);
+  for (const t of TRACKS) {
+    engine.setTrackVolume(t.id, state.volumes[t.id] ?? 1);
+    engine.setTrackEnabled(t.id, state.enabled[t.id]);
+  }
 }
 
 // --- Génération aléatoire ----------------------------------------------------
@@ -116,7 +121,7 @@ function randomPattern(trackId) {
 /** Note MIDI d'un degré, pour une piste donnée, dans la tonalité courante. */
 function midiFor(trackId, degree, extraOctaves = 0) {
   const root = TRACK_ROOT[trackId] + KEYS[state.keyIndex].semitone + state.transpose + extraOctaves * 12;
-  return degreeToMidi(degree, root, state.mode);
+  return degreeToMidi(degree, root, scaleName(state.mode, state.fullScale));
 }
 
 function chordMidis(degree, extraOctaves = 0) {
@@ -125,6 +130,8 @@ function chordMidis(degree, extraOctaves = 0) {
 
 function preview(trackId, degree) {
   if (!engine.ctx) return;
+  // Pendant la lecture, la boucle parle déjà : on n'ajoute pas un son par-dessus.
+  if (sequencer?.playing) return;
   const t = engine.ctx.currentTime + 0.01;
   if (trackId === 'kick') engine.kick(t);
   else if (trackId === 'snare') engine.snare(t);
@@ -223,6 +230,7 @@ const handlers = {
       styleId: style.id,
       tempo: style.tempo,
       mode: style.mode,
+      fullScale: !!style.fullScale,
       swing: style.swing,
       filter: style.fx.filter,
       delay: style.fx.delay,
@@ -296,6 +304,12 @@ const handlers = {
     save();
   },
   onLiveTrack(id) { state.liveTrack = id; ui.refreshLive(); save(); },
+  onTrackVolume(id, volume) {
+    state.volumes[id] = volume;
+    engine.setTrackVolume(id, volume);
+    ui.refreshTracks();
+    save();
+  },
   onOctave(delta) {
     state.octave = Math.max(-1, Math.min(1, state.octave + delta));
     ui.refreshLive();

@@ -22,6 +22,7 @@ musique et s'accentue sur les temps forts : on suit toujours où on en est.
 | **Tonalité** (en haut à droite) | 1 appui | Note de base : do, ré, mi… |
 | **Soleil / lune** | 1 appui | Joyeux (majeur) ou mystérieux (mineur) |
 | **Animal de la ligne** | 1 appui | Coupe ou rallume la couche. Chaque piste a son animal — éléphant, grenouille, oiseau, baleine, pieuvre, chat — et **il saute à chaque note qu'il joue** : on voit qui fait quoi sans savoir lire |
+| **Animal de la ligne** | **appui long** | Ouvre la jauge de **volume de cette piste** (de « muet » à « fort »). Un trait sous l'animal rappelle les pistes réglées à la main |
 | **Pads** | 1 appui | Ajoute ou enlève un son sur ce temps |
 | **Pads mélodiques** | poser le doigt, puis glisser haut/bas | Une **grande jauge** s'ouvre à côté du doigt, sur toute la hauteur de l'écran : le remplissage monte avec la note, un gros curseur affiche son nom (do, ré, mi…), et la position du doigt désigne directement la note. On relâche, elle disparaît |
 | **Dé** (à droite de chaque ligne) | 1 appui | Invente un motif pour cette ligne |
@@ -63,14 +64,29 @@ au-dessus du voile.
 ## Chaque style est un petit morceau
 
 Un style ne charge pas une boucle, mais **quatre phrases écrites à la main** qui s'enchaînent comme
-une chanson :
+une chanson — et les deux dernières portent **un air que l'enfant connaît** :
 
 | Phrase | Rôle |
 |---|---|
 | **A** | Le couplet : le groove de base, épuré |
 | **B** | La variation : même harmonie, ça bouge davantage, la mélodie apparaît |
-| **C** | Le pont : la batterie s'allège, les accords s'ouvrent |
-| **D** | Le refrain : tout revient, avec la mélodie principale |
+| **C** | Le thème connu, arrangé dans le style |
+| **D** | La suite du thème, en version complète |
+
+| Style | Thème |
+|---|---|
+| Techno | *Dans l'antre du roi de la montagne* — Grieg, 1875 |
+| Rock | *Ode à la joie* — Beethoven, 1824 |
+| Hip-Hop | *Au clair de la lune* — traditionnel |
+| Reggae | *Frère Jacques* — traditionnel |
+| Disco | *Le galop d'Offenbach* (le french cancan) — 1858 |
+| Doux | *Ah ! vous dirai-je, maman* — traditionnel |
+| Latino | *La Cucaracha* — traditionnel |
+| Jeu vidéo | *Alouette* — traditionnel |
+
+Ce sont toutes des mélodies du **domaine public** : elles se reprennent librement, y compris si
+l'appli est publiée. Reprendre une chanson récente demanderait une autorisation de son éditeur — et
+pour un enfant de 6 ans, ces airs-là sont de toute façon les plus reconnaissables.
 
 Il suffit d'appuyer sur **Chaîne** et de laisser tourner : A → B → C → D, un vrai morceau. Basse et
 accords partagent les mêmes degrés à chaque instant, pour que l'harmonie tienne debout, et les
@@ -98,8 +114,10 @@ Le point sous une lettre indique qu'elle contient quelque chose.
 
 ## Partis pris pour un enfant de 6 ans
 
-- **Gamme pentatonique** : les pads mélodiques et le clavier ne donnent accès qu'à 5 notes par
-  octave, choisies pour toujours sonner ensemble. On peut appuyer n'importe où, ça marche.
+- **Aucune fausse note possible** : les pads et le clavier ne donnent accès qu'aux notes de la
+  tonalité. Par défaut c'est la gamme pentatonique (5 notes), la plus indulgente ; les styles dont
+  le thème a besoin du *fa* ou du *si* (Frère Jacques, Alouette…) passent aux sept notes de la
+  gamme, qui restent toutes justes.
 - **Rien à lire** : chaque fonction est portée par une icône dessinée et une couleur ; les pistes
   sont des animaux. Les mots restent en secours, en petit, sous les boutons.
 - **Ce qui joue se voit** : la colonne de lecture balaie la grille, et l'animal d'une piste saute à
@@ -108,6 +126,10 @@ Le point sous une lettre indique qu'elle contient quelque chose.
 - **Tout est réversible** : les effets se relâchent, la corbeille n'efface que la phrase en cours.
 
 ## Sauvegarder ses morceaux
+
+Pendant que la musique tourne, ajouter une note **ne déclenche pas de son en plus** : la boucle
+parle déjà. À l'arrêt, en revanche, chaque note posée se fait entendre — c'est là qu'on cherche son
+motif.
 
 Le morceau en cours est **repris automatiquement** au démarrage suivant. En plus, le bouton
 **dossier** ouvre « mes morceaux » : six emplacements, chacun avec un aperçu miniature de sa boucle,
@@ -143,9 +165,11 @@ node tools/check.mjs
 ```
 
 Le script lance un vrai navigateur et contrôle la mise en page sur quatre formats (tablette et
-téléphone, portrait et paysage), la validité des 32 phrases écrites, le niveau sonore réel de chaque
-style (mesuré à la sortie du moteur : aucun style muet, aucune saturation) ainsi que le comportement
-musical : copie et enchaînement des
+téléphone, portrait et paysage), la validité des 32 phrases écrites, **les thèmes note à note** (une
+retouche de motif qui abîmerait « Frère Jacques » est détectée), le niveau sonore réel de chaque
+style (mesuré à la sortie du moteur : aucun style muet, aucune saturation), l'affichage effectif des
+douze voiles d'effet, le curseur de lecture, les animaux qui bougent, le volume par piste, le fait
+que le son du clic ne double pas la musique, ainsi que le comportement musical : copie et enchaînement des
 phrases, changement calé sur la mesure, clavier multi-touch, retour à la normale des douze effets,
 sauvegarde et rechargement.
 
@@ -177,6 +201,16 @@ tools/check.mjs       vérification automatique dans un navigateur
 Le séquenceur ne compte pas sur `setInterval` pour la précision : un timer réveille le moteur toutes
 les 25 ms et **planifie** les notes à l'avance sur l'horloge audio, qui les joue à la microseconde.
 Les changements de phrase sont posés sur le premier pas de la mesure suivante.
+
+## Régler l'équilibre des pistes
+
+Les niveaux de départ ont été réglés à la mesure, pas à l'oreille : le niveau **perçu** de chaque
+piste (RMS pondéré A, la courbe de sensibilité de l'oreille) est relevé style par style, et la
+mélodie est calée environ 4 dB sous la batterie — une mélodie se pose sur le rythme, elle ne le
+couvre pas.
+
+Pour ajuster au cas par cas : **appui long sur l'animal** d'une piste, puis glisser sur la jauge.
+Le réglage est enregistré avec le morceau.
 
 ## Idées pour la suite
 

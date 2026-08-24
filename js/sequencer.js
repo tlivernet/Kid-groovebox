@@ -1,5 +1,5 @@
 // Séquenceur : horloge « lookahead » (le timer JS planifie, Web Audio joue à l'heure exacte).
-import { STEPS, TRACK_ROOT, KEYS, PHRASES, isEmptyPhrase } from './patterns.js';
+import { STEPS, TRACK_ROOT, KEYS, PHRASES, isEmptyPhrase, scaleName } from './patterns.js';
 import { degreeToMidi } from './audio.js';
 
 const LOOKAHEAD_MS = 25;      // fréquence de réveil du timer
@@ -96,6 +96,7 @@ export class Sequencer {
   playStep(step, time, dur) {
     const s = this.state;
     const rootShift = KEYS[s.keyIndex].semitone + s.transpose;
+    const scale = scaleName(s.mode, s.fullScale);
     const hits = [];
 
     for (const id of ['kick', 'snare', 'hat']) {
@@ -110,7 +111,7 @@ export class Sequencer {
     if (s.enabled.bass) {
       const deg = s.patterns.bass[step];
       if (deg !== null) {
-        this.engine.bass(degreeToMidi(deg, TRACK_ROOT.bass + rootShift, s.mode), time, dur);
+        this.engine.bass(degreeToMidi(deg, TRACK_ROOT.bass + rootShift, scale), time, dur);
         hits.push('bass');
       }
     }
@@ -118,7 +119,7 @@ export class Sequencer {
       const deg = s.patterns.chord[step];
       if (deg !== null) {
         const root = TRACK_ROOT.chord + rootShift;
-        const notes = [deg, deg + 2, deg + 4].map((d) => degreeToMidi(d, root, s.mode));
+        const notes = [deg, deg + 2, deg + 4].map((d) => degreeToMidi(d, root, scale));
         this.engine.chord(notes, time, dur);
         hits.push('chord');
       }
@@ -126,7 +127,7 @@ export class Sequencer {
     if (s.enabled.lead) {
       const deg = s.patterns.lead[step];
       if (deg !== null) {
-        this.engine.lead(degreeToMidi(deg, TRACK_ROOT.lead + rootShift, s.mode), time, dur);
+        this.engine.lead(degreeToMidi(deg, TRACK_ROOT.lead + rootShift, scale), time, dur);
         hits.push('lead');
       }
     }

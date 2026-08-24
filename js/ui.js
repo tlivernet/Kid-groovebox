@@ -4,7 +4,7 @@ import {
   LIVE_TRACKS, isEmptyPhrase, getStyle,
 } from './patterns.js';
 import { icon } from './icons.js';
-import { NotePicker } from './picker.js';
+import { NotePicker, VolumePicker } from './picker.js';
 import { SLOTS } from './songs.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -125,6 +125,7 @@ export class UI {
 
   build() {
     this.picker = new NotePicker(this.root);
+    this.volumeGauge = new VolumePicker(this.root);
     this.buildStyles();
     this.buildKeys();
     this.buildViews();
@@ -238,8 +239,8 @@ export class UI {
       toggle.className = 'track-btn';
       toggle.dataset.track = track.id;
       toggle.setAttribute('aria-label', track.label);
-      toggle.innerHTML = icon(track.icon);
-      toggle.addEventListener('click', () => this.handlers.onToggleTrack(track.id));
+      toggle.innerHTML = `${icon(track.icon)}<span class="track-vol"></span>`;
+      this.attachTrackEvents(toggle, track);
       row.appendChild(toggle);
 
       const padsWrap = document.createElement('div');
@@ -264,6 +265,53 @@ export class UI {
       row.appendChild(dice);
 
       grid.appendChild(row);
+    });
+  }
+
+  /**
+   * Appui court : couper ou rallumer la piste.
+   * Appui long : ouvrir la jauge de volume de cette piste.
+   */
+  attachTrackEvents(btn, track) {
+    let timer = null, reglage = false, activePointer = null;
+
+    btn.addEventListener('pointerdown', (e) => {
+      capture(btn, e.pointerId);
+      activePointer = e.pointerId;
+      reglage = false;
+      timer = setTimeout(() => {
+        reglage = true;
+        this.volumeGauge.show({
+          rect: btn.getBoundingClientRect(),
+          color: track.color,
+          volume: this.state.volumes[track.id] ?? 1,
+        });
+      }, LONG_PRESS_MS);
+    });
+
+    btn.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== activePointer || !reglage) return;
+      const volume = this.volumeGauge.volumeAt(e.clientY);
+      if (volume !== this.state.volumes[track.id]) {
+        this.handlers.onTrackVolume(track.id, volume);
+        this.volumeGauge.highlight(this.volumeGauge.indexOf(volume));
+      }
+    });
+
+    const end = (e) => {
+      if (e.pointerId !== activePointer) return;
+      activePointer = null;
+      clearTimeout(timer);
+      release(btn, e.pointerId);
+      if (reglage) this.volumeGauge.hide();
+      else this.handlers.onToggleTrack(track.id);
+    };
+    btn.addEventListener('pointerup', end);
+    btn.addEventListener('pointercancel', (e) => {
+      clearTimeout(timer);
+      if (reglage) this.volumeGauge.hide();
+      activePointer = null;
+      release(btn, e.pointerId);
     });
   }
 
@@ -572,9 +620,16 @@ export class UI {
   refreshTracks() {
     TRACKS.forEach((track) => {
       const btn = this.root.querySelector(`.track-btn[data-track="${track.id}"]`);
-      const on = this.state.enabled[track.id];
+      const volume = this.state.volumes[track.id] ?? 1;
+      // Volume à zéro : la piste est muette, elle doit le montrer comme si elle
+      // était coupée, sinon on cherche pourquoi on n'entend rien.
+      const on = this.state.enabled[track.id] && volume > 0;
       btn.classList.toggle('off', !on);
       btn.closest('.row').classList.toggle('muted', !on);
+      // Petit trait sous l'animal quand son volume n'est pas au réglage normal.
+      const bar = btn.querySelector('.track-vol');
+      bar.style.width = `${Math.min(volume / 1.3, 1) * 100}%`;
+      btn.classList.toggle('tuned', volume !== 1);
     });
   }
 

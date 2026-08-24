@@ -313,7 +313,19 @@ main { flex: 1; min-height: 0; display: flex; }
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 45%, transparent);
   transition: opacity .14s, transform .08s, filter .14s;
 }
+.track-btn { position: relative; overflow: hidden; }
 .track-btn:active { transform: scale(.94); }
+/* Trait de volume, visible seulement si la piste a été réglée à la main. */
+.track-vol {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 4px;
+  background: var(--c);
+  opacity: 0;
+  transition: width .12s, opacity .12s;
+}
+.track-btn.tuned .track-vol { opacity: .95; }
 .track-btn.off { opacity: .32; filter: grayscale(1); }
 /* À chaque note de la piste, l'animal fait un bond. */
 .track-btn.hit { animation: trackHit .3s cubic-bezier(.2, .8, .3, 1); }
