@@ -157,6 +157,11 @@ python3 -m http.server 8000
 L'appli se lance en plein écran, sans barre d'adresse, et fonctionne sans connexion. Sur iPad,
 penser au bouton latéral : le mode silencieux coupe le son.
 
+**Après une mise à jour** : le code de l'appli est demandé au réseau à chaque chargement (il pèse
+quelques dizaines de kilo-octets), donc un simple rechargement suffit à obtenir la dernière version ;
+le cache ne sert que si le réseau manque. Si une très ancienne version reste collée dans un
+navigateur, un rechargement forcé (Ctrl+Maj+R, ou ⌘⇧R sur Mac) la débloque.
+
 ## Vérifier après une modification
 
 ```bash
@@ -192,7 +197,8 @@ js/audio.js           moteur audio : percussions et synthés synthétisés, filt
 js/sequencer.js       horloge « lookahead » + enchaînement des phrases sur la mesure
 js/ui.js              grille, potards tactiles, clavier, banque d'effets
 js/app.js             état, sauvegarde, effets de scène, démarrage
-sw.js                 service worker (fonctionnement hors ligne)
+sw.js                 service worker : réseau d'abord pour le code (la dernière version
+                      arrive dès le premier rechargement), cache pour le hors ligne
 manifest.webmanifest  installation sur l'écran d'accueil
 tools/make-icons.mjs  génère les icônes PNG de l'appli
 tools/check.mjs       vérification automatique dans un navigateur

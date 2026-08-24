@@ -386,7 +386,20 @@ document.addEventListener('visibilitychange', () => {
 });
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => { /* hors ligne indisponible */ });
+  window.addEventListener('load', async () => {
+    try {
+      const enregistrement = await navigator.serviceWorker.register('./sw.js');
+      enregistrement.update();   // vérifie s'il existe une nouvelle version
+    } catch { /* hors ligne indisponible */ }
+  });
+
+  // Quand une nouvelle version prend la main, on recharge — mais seulement si la
+  // musique n'a pas encore démarré : hors de question de couper le son en plein jeu.
+  const avaitUnControleur = !!navigator.serviceWorker.controller;
+  let rechargement = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!avaitUnControleur || rechargement || engine.ctx) return;
+    rechargement = true;
+    window.location.reload();
   });
 }

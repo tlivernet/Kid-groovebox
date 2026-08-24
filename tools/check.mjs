@@ -12,6 +12,8 @@
  *    sauvegarde et rechargement.
  */
 import { spawn } from 'node:child_process';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -502,6 +504,51 @@ await page.waitForTimeout(600);
 const apresRechargement = await page.evaluate(() => JSON.stringify(window.groovebox.state.phrases));
 check('sauvegarde et rechargement du morceau', avant === apresRechargement);
 check('aucune erreur dans la console', errors.length === 0, errors.join(' | '));
+
+// --- Mise à jour et hors ligne ------------------------------------------------
+// Deux promesses contradictoires à tenir : afficher la dernière version dès le
+// premier rechargement, et continuer de marcher sans réseau. On les vérifie sur
+// une copie du site, qu'on peut modifier comme le ferait une mise en ligne.
+const copie = mkdtempSync(join(tmpdir(), 'groovebox-'));
+cpSync(ROOT, copie, {
+  recursive: true,
+  filter: (src) => !src.includes('/.git') && !src.includes('node_modules'),
+});
+const PORT_MAJ = PORT + 1;
+const serveurMaj = spawn('python3', ['-m', 'http.server', String(PORT_MAJ), '--directory', copie], { stdio: 'ignore' });
+await new Promise((r) => setTimeout(r, 900));
+
+const pageMaj = await browser.newPage({ viewport: SIZES[0] });
+await pageMaj.goto(`http://localhost:${PORT_MAJ}/index.html`);
+await pageMaj.click('#start-btn');
+await pageMaj.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 15000 });
+
+const fichierStyles = join(copie, 'js', 'patterns.js');
+writeFileSync(fichierStyles, readFileSync(fichierStyles, 'utf8').replace("label: 'Techno'", "label: 'NOUVEAU'"));
+
+await pageMaj.reload({ waitUntil: 'load' });
+await pageMaj.click('#start-btn');
+await pageMaj.waitForTimeout(900);
+const affiche = await pageMaj.evaluate(() =>
+  document.querySelector('.style-chip[data-style="techno"] .chip-label')?.textContent ?? '?');
+check('une mise à jour arrive dès le premier rechargement', affiche === 'NOUVEAU',
+      `la page affiche « ${affiche} »`);
+
+await pageMaj.context().setOffline(true);
+await pageMaj.reload({ waitUntil: 'load' });
+const servieHorsLigne = await pageMaj.evaluate(() => !!document.querySelector('#start-btn'));
+let completeHorsLigne = false;
+if (servieHorsLigne) {
+  await pageMaj.click('#start-btn');
+  await pageMaj.waitForTimeout(700);
+  completeHorsLigne = await pageMaj.evaluate(() => document.querySelectorAll('.pad').length === 96);
+}
+await pageMaj.context().setOffline(false);
+check('l\'appli se lance encore sans réseau', servieHorsLigne && completeHorsLigne,
+      `page servie : ${servieHorsLigne}, interface complète : ${completeHorsLigne}`);
+
+serveurMaj.kill();
+rmSync(copie, { recursive: true, force: true });
 
 await browser.close();
 server.kill();
