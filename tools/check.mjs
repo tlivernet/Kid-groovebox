@@ -267,20 +267,81 @@ check('le navigateur ne confisque aucun glissé',
       annulations.length === 0 && toucheTenue === 1 && effetTenu,
       `pointercancel : ${annulations.length ? annulations.join(', ') : 'aucun'}, touche tenue : ${toucheTenue}, effet tenu : ${effetTenu}`);
 
-// Voile visuel : présent pendant l'effet, retiré au relâchement.
-await page.click('.view-tab[data-view="live"]');
-const fxSpace = page.locator('.fx-btn[data-fx="space"]');
-await fxSpace.dispatchEvent('pointerdown', { pointerId: 32 });
-await page.waitForTimeout(250);
-const voile = await page.evaluate(() => {
-  const el = document.querySelector('#fx-overlay');
-  return { actif: el.classList.contains('on') && el.classList.contains('fx-space'),
-           nom: el.querySelector('.ov-label').textContent };
+// Voile visuel : on mesure l'opacité RÉELLEMENT calculée de la couche attendue,
+// pas seulement le nom des classes — c'est ce qui avait laissé passer un bug
+// de spécificité CSS qui rendait 7 effets sur 12 invisibles.
+const COUCHES = {
+  filter: 'ov-veil', drop: 'ov-veil', repeat: 'ov-strobe', hyper: 'ov-strobe',
+  loop: 'ov-strobe', slow: 'ov-wave', turbo: 'ov-speed', echo: 'ov-rings',
+  space: 'ov-glow', robot: 'ov-scan', brake: 'ov-tape', rise: 'ov-rise',
+};
+const invisibles = [];
+for (const [id, couche] of Object.entries(COUCHES)) {
+  const bouton = page.locator(`.fx-btn[data-fx="${id}"]`);
+  await bouton.dispatchEvent('pointerdown', { pointerId: 40 });
+  // Plusieurs relevés : une couche animée passe par des valeurs basses.
+  let maxOpacite = 0, fond = '';
+  for (let i = 0; i < 6; i++) {
+    await page.waitForTimeout(70);
+    const mesure = await page.evaluate((c) => {
+      const el = document.querySelector(`#fx-overlay .${c}`);
+      const style = getComputedStyle(el);
+      // Une couche peut être peinte par une image de fond (dégradé) ou par une
+      // simple couleur : les deux comptent.
+      const couleur = style.backgroundColor;
+      const peinte = style.backgroundImage !== 'none'
+        || (couleur && couleur !== 'rgba(0, 0, 0, 0)' && couleur !== 'transparent');
+      return { opacite: Number(style.opacity), fond: peinte ? 'oui' : 'none' };
+    }, couche);
+    maxOpacite = Math.max(maxOpacite, mesure.opacite);
+    fond = mesure.fond;
+  }
+  const nom = await page.evaluate(() => document.querySelector('.ov-label').textContent);
+  await bouton.dispatchEvent('pointerup', { pointerId: 40 });
+  await page.waitForTimeout(120);
+  const eteint = await page.evaluate((c) => ({
+    couche: Number(getComputedStyle(document.querySelector(`#fx-overlay .${c}`)).opacity),
+    voile: document.querySelector('#fx-overlay').classList.contains('on'),
+  }), couche);
+  if (maxOpacite < 0.15 || fond === 'none' || !nom || eteint.voile) {
+    invisibles.push(`${id} (opacité ${maxOpacite.toFixed(2)}${fond === 'none' ? ', sans fond' : ''})`);
+  }
+}
+check('les 12 voiles d\'effet s\'affichent vraiment', invisibles.length === 0,
+      invisibles.length ? invisibles.join(', ') : 'chaque couche visible puis éteinte');
+
+// Curseur de lecture : la colonne se déplace vraiment d'un pas à l'autre.
+await page.click('.view-tab[data-view="motif"]');
+await page.evaluate(() => { window.groovebox.state.tempo = 90; });
+const positions = new Set();
+let largeurCurseur = 0;
+for (let i = 0; i < 12; i++) {
+  const etat = await page.evaluate(() => {
+    const el = document.querySelector('#playhead');
+    return { gauche: Math.round(parseFloat(el.style.left) || 0), largeur: Math.round(parseFloat(el.style.width) || 0), visible: el.classList.contains('on') };
+  });
+  if (etat.visible) { positions.add(etat.gauche); largeurCurseur = etat.largeur; }
+  await page.waitForTimeout(90);
+}
+check('le curseur de lecture balaie la grille',
+      positions.size >= 3 && largeurCurseur > 20,
+      `${positions.size} positions vues, largeur ${largeurCurseur} px`);
+
+// Les animaux sautent : la classe d'animation apparaît sur les pistes qui jouent.
+const sauts = await page.evaluate(async () => {
+  const vus = new Set();
+  const observateur = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.target.classList.contains('hit')) vus.add(m.target.dataset.track);
+    }
+  });
+  document.querySelectorAll('.track-btn').forEach((b) =>
+    observateur.observe(b, { attributes: true, attributeFilter: ['class'] }));
+  await new Promise((r) => setTimeout(r, 2500));
+  observateur.disconnect();
+  return [...vus];
 });
-await fxSpace.dispatchEvent('pointerup', { pointerId: 32 });
-await page.waitForTimeout(200);
-const voileApres = await page.evaluate(() => document.querySelector('#fx-overlay').classList.contains('on'));
-check('voile visuel de l\'effet', voile.actif && voile.nom === 'Espace' && !voileApres, JSON.stringify(voile));
+check('les animaux bougent quand leur piste joue', sauts.length >= 3, `pistes animées : ${sauts.join(', ')}`);
 
 // Emplacements de sauvegarde : garder, casser le morceau, recharger.
 await page.click('#songs');

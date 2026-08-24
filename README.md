@@ -13,14 +13,15 @@ fonctionne **hors ligne**.
 
 ### Motif — fabriquer la boucle
 
-Une grille de 16 pas sur 6 couches. Chaque ligne se coupe ou se rallume d'un appui sur son icône.
+Une grille de 16 pas sur 6 couches. Une **colonne lumineuse balaie la grille** au rythme de la
+musique et s'accentue sur les temps forts : on suit toujours où on en est.
 
 | Élément | Geste | Effet |
 |---|---|---|
 | **Styles** (en haut à gauche) | 1 appui | Techno, rock, hip-hop, reggae, disco, doux, latino, jeu vidéo — charge **un petit morceau complet** : tempo, sons, swing et les quatre phrases (voir plus bas) |
 | **Tonalité** (en haut à droite) | 1 appui | Note de base : do, ré, mi… |
 | **Soleil / lune** | 1 appui | Joyeux (majeur) ou mystérieux (mineur) |
-| **Icône d'instrument** | 1 appui | Coupe ou rallume la couche |
+| **Animal de la ligne** | 1 appui | Coupe ou rallume la couche. Chaque piste a son animal — éléphant, grenouille, oiseau, baleine, pieuvre, chat — et **il saute à chaque note qu'il joue** : on voit qui fait quoi sans savoir lire |
 | **Pads** | 1 appui | Ajoute ou enlève un son sur ce temps |
 | **Pads mélodiques** | poser le doigt, puis glisser haut/bas | Une **grande jauge** s'ouvre à côté du doigt, sur toute la hauteur de l'écran : le remplissage monte avec la note, un gros curseur affiche son nom (do, ré, mi…), et la position du doigt désigne directement la note. On relâche, elle disparaît |
 | **Dé** (à droite de chaque ligne) | 1 appui | Invente un motif pour cette ligne |
@@ -44,7 +45,8 @@ avant. C'est le principe des *punch-in effects* de l'OP-Z.
 Chaque effet s'accompagne d'un **voile visuel plein écran** qui montre ce qu'on entend : le monde se
 referme sur le filtre, des flashs pour la répète, des anneaux pour l'écho, un halo pour l'espace, un
 quadrillage de vieille machine pour le robot, une vague de lumière qui grimpe pour la montée. Le nom
-de l'effet s'affiche en grand, et l'écran bat sur les temps forts.
+de l'effet s'affiche en grand, l'écran bat sur les temps forts, et le bouton tenu reste éclairé
+au-dessus du voile.
 
 | Effet | Ce qui se passe |
 |---|---|
@@ -98,8 +100,10 @@ Le point sous une lettre indique qu'elle contient quelque chose.
 
 - **Gamme pentatonique** : les pads mélodiques et le clavier ne donnent accès qu'à 5 notes par
   octave, choisies pour toujours sonner ensemble. On peut appuyer n'importe où, ça marche.
-- **Rien à lire** : chaque fonction est portée par une icône dessinée et une couleur. Les mots
-  restent en secours, en petit.
+- **Rien à lire** : chaque fonction est portée par une icône dessinée et une couleur ; les pistes
+  sont des animaux. Les mots restent en secours, en petit, sous les boutons.
+- **Ce qui joue se voit** : la colonne de lecture balaie la grille, et l'animal d'une piste saute à
+  chaque note.
 - **Aucun état caché** : pas de menu, pas de mode invisible ; ce qui est allumé est ce qu'on entend.
 - **Tout est réversible** : les effets se relâchent, la corbeille n'efface que la phrase en cours.
 

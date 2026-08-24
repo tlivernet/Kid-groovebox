@@ -40,7 +40,7 @@ export class Sequencer {
     clearInterval(this.timer);
     this.timer = null;
     this.queue = [];
-    this.onStep(-1);
+    this.onStep(-1, []);
   }
 
   schedule() {
@@ -51,8 +51,10 @@ export class Sequencer {
       const dur = this.stepDuration;
       // Swing : on retarde légèrement les temps faibles.
       const offset = this.step % 2 === 1 ? dur * this.state.swing * 0.5 : 0;
-      this.playStep(this.step, this.nextTime + offset, dur);
-      this.queue.push({ step: this.step, time: this.nextTime + offset, phrase: this.state.phraseIndex });
+      const hits = this.playStep(this.step, this.nextTime + offset, dur);
+      this.queue.push({
+        step: this.step, time: this.nextTime + offset, phrase: this.state.phraseIndex, hits,
+      });
       this.nextTime += dur;
       this.step = this.nextStep(this.step);
     }
@@ -90,9 +92,11 @@ export class Sequencer {
     this.stutter = length ? { start: this.step, length } : null;
   }
 
+  /** Joue un pas et renvoie les pistes qui ont sonné (pour animer l'affichage). */
   playStep(step, time, dur) {
     const s = this.state;
     const rootShift = KEYS[s.keyIndex].semitone + s.transpose;
+    const hits = [];
 
     for (const id of ['kick', 'snare', 'hat']) {
       if (!s.enabled[id]) continue;
@@ -100,12 +104,14 @@ export class Sequencer {
       if (id === 'kick') this.engine.kick(time);
       else if (id === 'snare') this.engine.snare(time);
       else this.engine.hat(time);
+      hits.push(id);
     }
 
     if (s.enabled.bass) {
       const deg = s.patterns.bass[step];
       if (deg !== null) {
         this.engine.bass(degreeToMidi(deg, TRACK_ROOT.bass + rootShift, s.mode), time, dur);
+        hits.push('bass');
       }
     }
     if (s.enabled.chord) {
@@ -114,14 +120,17 @@ export class Sequencer {
         const root = TRACK_ROOT.chord + rootShift;
         const notes = [deg, deg + 2, deg + 4].map((d) => degreeToMidi(d, root, s.mode));
         this.engine.chord(notes, time, dur);
+        hits.push('chord');
       }
     }
     if (s.enabled.lead) {
       const deg = s.patterns.lead[step];
       if (deg !== null) {
         this.engine.lead(degreeToMidi(deg, TRACK_ROOT.lead + rootShift, s.mode), time, dur);
+        hits.push('lead');
       }
     }
+    return hits;
   }
 
   /** Boucle d'affichage : le curseur s'allume pile au moment où le son sort. */
@@ -135,7 +144,7 @@ export class Sequencer {
         this.shownPhrase = event.phrase;
         this.onPhrase(event.phrase);
       }
-      this.onStep(event.step);
+      this.onStep(event.step, event.hits);
     }
     requestAnimationFrame(() => this.tick());
   }

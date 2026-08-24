@@ -4,12 +4,12 @@
 export const STEPS = 16;
 
 export const TRACKS = [
-  { id: 'kick',  icon: 'kick',  label: 'Grosse caisse', type: 'drum',  color: '#ff5470' },
-  { id: 'snare', icon: 'snare', label: 'Caisse claire', type: 'drum',  color: '#ff9f43' },
-  { id: 'hat',   icon: 'hat',   label: 'Charleston',    type: 'drum',  color: '#ffd23f' },
-  { id: 'bass',  icon: 'bass',  label: 'Basse',         type: 'pitch', color: '#3ec9ff' },
-  { id: 'chord', icon: 'chord', label: 'Accords',       type: 'pitch', color: '#b57bff' },
-  { id: 'lead',  icon: 'lead',  label: 'Mélodie',       type: 'pitch', color: '#3ce88b' },
+  { id: 'kick',  icon: 'elephant', label: 'Grosse caisse', type: 'drum',  color: '#ff5470' },
+  { id: 'snare', icon: 'frog',     label: 'Caisse claire', type: 'drum',  color: '#ff9f43' },
+  { id: 'hat',   icon: 'bird',     label: 'Charleston',    type: 'drum',  color: '#ffd23f' },
+  { id: 'bass',  icon: 'whale',    label: 'Basse',         type: 'pitch', color: '#3ec9ff' },
+  { id: 'chord', icon: 'octopus',  label: 'Accords',       type: 'pitch', color: '#b57bff' },
+  { id: 'lead',  icon: 'cat',      label: 'Mélodie',       type: 'pitch', color: '#3ce88b' },
 ];
 
 /** Nombre de phrases (motifs A, B, C, D) que l'on peut enchaîner. */

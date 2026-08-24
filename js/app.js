@@ -339,7 +339,7 @@ async function boot() {
   applyMix();
   overlay = new FxOverlay(document.body, Object.fromEntries(PUNCH_FX.map((fx) => [fx.id, fx.label])));
   sequencer = new Sequencer(engine, state, {
-    onStep: (step) => { ui.setPlayhead(step); overlay.pulse(step); },
+    onStep: (step, hits) => { ui.setPlayhead(step, hits); overlay.pulse(step); },
     onPhrase: () => { ui.refreshPads(); ui.refreshPhrases(); },
   });
   ui = new UI(root, state, handlers);

@@ -13,7 +13,10 @@ export class FxOverlay {
     this.el = document.createElement('div');
     this.el.id = 'fx-overlay';
     this.el.setAttribute('aria-hidden', 'true');
-    this.el.innerHTML = LAYERS.map((name) => `<div class="ov-${name}"></div>`).join('')
+    // La classe commune « ov-layer » porte l'état caché : elle doit rester en
+    // classe (et non en sélecteur d'id), sinon elle l'emporterait sur les
+    // règles d'activation et les effets ne s'afficheraient jamais.
+    this.el.innerHTML = LAYERS.map((name) => `<div class="ov-layer ov-${name}"></div>`).join('')
       + '<div class="ov-label"></div>';
     this.label = this.el.querySelector('.ov-label');
     root.appendChild(this.el);

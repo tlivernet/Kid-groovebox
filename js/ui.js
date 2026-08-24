@@ -224,6 +224,10 @@ export class UI {
 
   buildGrid() {
     const grid = this.root.querySelector('#grid');
+    // Colonne lumineuse qui suit la musique, par-dessus toute la grille.
+    this.playhead = document.createElement('div');
+    this.playhead.id = 'playhead';
+    grid.appendChild(this.playhead);
     TRACKS.forEach((track) => {
       const row = document.createElement('div');
       row.className = 'row';
@@ -427,14 +431,15 @@ export class UI {
   buildTransport() {
     this.playBtn = this.root.querySelector('#play');
     this.playBtn.addEventListener('click', () => this.handlers.onPlayToggle());
+    // Un mot sous chaque icône : à 6 ans, une icône seule ne suffit pas.
     const clear = this.root.querySelector('#clear');
-    clear.innerHTML = icon('trash');
+    clear.innerHTML = `${icon('trash')}<span>Effacer</span>`;
     clear.addEventListener('click', () => this.handlers.onClear());
     const surprise = this.root.querySelector('#surprise');
-    surprise.innerHTML = icon('magic');
+    surprise.innerHTML = `${icon('magic')}<span>Surprise</span>`;
     surprise.addEventListener('click', () => this.handlers.onSurprise());
     const songs = this.root.querySelector('#songs');
-    songs.innerHTML = icon('songs');
+    songs.innerHTML = `${icon('songs')}<span>Morceaux</span>`;
     songs.addEventListener('click', () => this.openSongs());
   }
 
@@ -626,14 +631,42 @@ export class UI {
     this.playBtn.classList.toggle('playing', playing);
   }
 
-  setPlayhead(step) {
+  setPlayhead(step, hits = []) {
+    hits.forEach((id) => this.bounce(id));
     if (this.currentStep === step) return;
     if (this.currentStep >= 0) {
       TRACKS.forEach((t) => this.pads[t.id][this.currentStep]?.classList.remove('cursor'));
     }
     this.currentStep = step;
-    if (step >= 0) {
-      TRACKS.forEach((t) => this.pads[t.id][step]?.classList.add('cursor'));
+    if (step < 0) {
+      this.playhead.classList.remove('on');
+      return;
     }
+    TRACKS.forEach((t) => this.pads[t.id][step]?.classList.add('cursor'));
+    this.movePlayhead(step);
+  }
+
+  /** Place la colonne lumineuse sur le pas courant. */
+  movePlayhead(step) {
+    const pad = this.pads[TRACKS[0].id][step];
+    const grid = this.playhead.parentElement;
+    if (!pad || !grid) return;
+    const padBox = pad.getBoundingClientRect();
+    const gridBox = grid.getBoundingClientRect();
+    if (!padBox.width) return;   // grille masquée (mode live)
+    this.playhead.style.left = `${padBox.left - gridBox.left - 3}px`;
+    this.playhead.style.width = `${padBox.width + 6}px`;
+    this.playhead.classList.add('on');
+    // Les temps forts s'accentuent : on sent la mesure d'un coup d'œil.
+    this.playhead.classList.toggle('beat', step % 4 === 0);
+  }
+
+  /** Fait sauter l'animal d'une piste quand sa note tombe. */
+  bounce(trackId) {
+    const btn = this.root.querySelector(`.track-btn[data-track="${trackId}"]`);
+    if (!btn) return;
+    btn.classList.remove('hit');
+    void btn.offsetWidth;   // relance l'animation même sur deux notes rapprochées
+    btn.classList.add('hit');
   }
 }
